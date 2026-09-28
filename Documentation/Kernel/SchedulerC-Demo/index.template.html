@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Scheduler C - A Proposed Replacement for SerenityOS's Scheduler</title>
+<style>/*__CSS__*/</style>
+</head>
+<body>
+<div class="shell">
+<header class="masthead"><a class="brand" href="#">SERENITYOS <span class="brand-light">/ SCHEDULER ANALYSIS</span></a><div class="model-badge"><i></i> INTERACTIVE MODEL · ONE CPU</div></header>
+<section class="intro"><div><div class="eyebrow">SCHEDULER PROPOSAL · INTERACTIVE ANALYSIS</div><h1>Scheduler C - A Proposed Replacement for SerenityOS's Scheduler</h1><p>Compare Scheduler C with the Original Scheduler through interactive workloads, with a focus on task priority, CPU allocation, and responsiveness.</p></div><div class="intro-note"><span class="note-index">Original → Scheduler C</span><p>Original priority queues<br>vs. weighted virtual time</p></div></section>
+<section class="pre-intro" aria-labelledby="poingo-intro-heading">
+<h2 id="poingo-intro-heading">What Poingo exposed</h2>
+<p>I made a cute retro bouncing-ball demo called Poingo and showed it off in the SerenityOS Discord channels. It ran fairly well with one ball. Then I turned it up: five more balls, for a total of six bouncing around the desktop. It looked neat, but it stuttered. After a few balls, it started to break down.</p>
+<p>Other operating systems could run it on the same hardware. Why was SerenityOS struggling? One thing I truly respect about SerenityOS is that it is simple enough to reason about. I miss that from the earlier days of computing. I also like that it puts the desktop first, instead of being a server OS wearing a desktop hat. I wanted Poingo to run well here, so I dug in.</p>
+<p>I found two classes of problems. The scheduler wasn't giving higher-priority parts of the system enough CPU time: WindowServer was getting a little starved by Poingo, and audio started glitching as I added balls.</p>
+<p>Then there were the blunt stalls. Poingo would just <em>stop</em> for a few frames. That went beyond scheduling. After investigating and instrumenting the kernel, I traced those stalls to two back-to-back spinlocks in WindowServer.</p>
+<p>Both problems need work. This page is about the scheduler.</p>
+</section>
+<section class="scheduler-introduction" aria-labelledby="scheduler-introduction-heading">
+<h2 id="scheduler-introduction-heading">Start with the Original Scheduler</h2>
+<p>SerenityOS already has a scheduler. Before replacing it, let’s try fixing it, one problem at a time.</p>
+<p class="intro-assumption">A.1, A.2, and A.3 below are hypothetical repairs. These examples assume one CPU and busy threads that keep wanting more CPU time.</p>
+<div class="intro-stage"><h3>The original</h3><p>There are 99 priority values and 32 queues, or “buckets.” But an integer arithmetic <strong>bug</strong> puts priorities 2–99 into the same bucket, leaving priority 1 in the bottom bucket. LOW, NORMAL, HIGH, and MAX all take turns together. Most of the priority control does nothing. <a href="#priority-bucket-note">The exact arithmetic is below.</a></p></div>
+<div class="intro-stage"><h3>A.1: Fix the math</h3><p>Now the buckets work. Two busy priority-50 threads can <strong>shut out</strong> a priority-30 thread <strong>forever</strong>: one runs while the other waits in the preferred bucket. Oddly, just <em>one</em> busy 50 can alternate with the 30, because the scheduler chooses a replacement before putting the current runner back in its queue. The arithmetic bug had been hiding starvation between priorities that shared the broken bucket.</p></div>
+<div class="intro-stage"><h3>A.2: Compare the current runner too</h3><p>Keep FIFO turns within each bucket, but include the running thread in the choice. That removes the odd forced alternation. Now a single busy 50 can beat the 30 at every choice and keep running. <strong>Starvation gets easier to trigger!</strong> The rule is consistent; it just lets higher-priority work shut out lower-priority desktop work.</p></div>
+<div class="intro-stage"><h3>A.3: Make room for everyone</h3><p>We could force an occasional turn for another bucket, remembering where we left off and rotating through <em>all</em> occupied buckets. That prevents starvation. But under heavy load, “eventually” can still be a long wait. We now have strict priority with a second scheduling rule bolted on, and an interval to tune. And, we've created a scheduler that is complicated, hard to reason about, and still doesn't lead to a responsive user experience. It has exceptions, and within the exceptions, a <b>virtual second scheduler</b>.</p></div>
+<p>And after all that, different priorities get binned into fewer buckets -- why distinguish at all?  50 and 51 share a bucket and get treated alike, for example, why give expression to the distinction to the programmer if it doesn't MEAN anything?</p>
+<p>“Just fix the bugs” naturally grows into a discussion about policy. And once we are deciding how to share the CPU, prevent starvation, and keep the desktop responsive, we’re designing a scheduler -- we should do that deliberately.</p>
+<div class="intro-proposal"><h3>Scheduler C</h3><p>Scheduler C gives every priority its own weight, with no buckets. It runs the thread with the lowest weighted virtual time. Priorities finally affect CPU share, lower-priority threads still get turns, and sleeping threads cannot bank unlimited credit.</p><p>That is the proposal: a small set of rules we can explain, inspect, and measure. It still needs real workload evaluation. The demos below show how its policy compares with the <em>unmodified</em> Original Scheduler.</p></div>
+<p><strong>Timer decision: 1,000 Hz.</strong> We propose raising the timer frequency from 250 to 1,000 Hz: a scheduling tick every 1 ms. This gives Scheduler C finer CPU accounting and more frequent chances to run newly awakened threads, at the cost of more timer and scheduler work. Both demo panels use this frequency for comparison; the Original Scheduler’s two-tick turn is now 2 ms, and Scheduler C’s one-tick turn is 1 ms.</p>
+</section>
+<nav class="scenarios" aria-label="Experiments" id="scenarios"></nav>
+<section class="experiment"><div><span class="eyebrow" id="scenario-tag"></span><p id="scenario-text"></p></div><button id="restart" class="quiet" title="Restart experiment (R)">↺ Restart</button></section>
+<div class="simulation-zone"><div class="console"><section class="transport" aria-label="Simulation controls"><div class="playback"><button id="play" class="primary" title="Play or pause (Space)">▶ Run</button><button id="step" title="Advance one 1 ms interval (Right arrow)">Step <span>+1 ms</span></button><label class="speed-label">Playback <select id="speed"><option value="1">Slow · 1 tick/s</option><option value="4" selected>Normal · 4 ticks/s</option><option value="20">Fast · 20 ticks/s</option><option value="100">Overview · 100 ticks/s</option></select></label></div><div class="sim-clock"><span>SIMULATED TIME</span><strong id="clock">0 <small>ms</small></strong></div></section>
+<section class="input-deck"><div class="input-actions"><button id="click" class="input-button" title="Send a click (I)">↗ Send a click</button><label class="check-label"><input type="checkbox" id="auto-input"> Repeat every 80 ms</label><button id="hold" class="lock-button" title="Inject a 24 ms interrupt-disabled section on each CPU">▧ Hold interrupts · 24 ms</button></div><p id="input-status" role="status" aria-live="polite">Each click goes to both schedulers.</p></section>
+</div><main class="comparison" id="comparison"></main>
+<section class="workbench"><div class="section-heading"><div><div class="eyebrow">CHANGE THE EXPERIMENT</div><h2>Runnable threads</h2></div><div class="workbench-actions"><button id="load-mixed" class="quiet">Load mixed workload</button><button id="add-worker" class="quiet">+ Add worker</button></div></div><p class="section-note">Each row represents one thread. Changing a priority restarts both simulations. Sleeping or waking a worker changes the live workload. The mixed workload covers LOW 10, NORMAL 30, HIGH 50, and MAX 99.</p><div id="task-list" class="task-list"></div></section>
+</div><section class="takeaway" id="takeaway"><span class="takeaway-icon">↳</span><div><h2 id="takeaway-title"></h2><p id="takeaway-text"></p></div></section>
+<section class="method" aria-label="About the model">
+<p><strong>About the model.</strong> One CPU, 1,000 Hz, and no simulated switching overhead. Desktop and audio jobs take one 1 ms tick. These are teaching examples, not measured GUI response times.</p>
+<p><strong>Source versions.</strong> Original Scheduler: <code>5a4c0d7b</code>, two ticks per turn. Scheduler C: <code>e1259863</code>, one tick per turn, choosing the smallest weighted virtual time.</p>
+<p><strong>Limits.</strong> MAX earns a larger CPU share, not a deadline guarantee. Interrupt-disabled work can delay either scheduler; the 24 ms hold is an illustration.</p>
+<p class="shortcut-note">Keyboard: <kbd>Space</kbd> run/pause · <kbd>→</kbd> step · <kbd>I</kbd> input · <kbd>R</kbd> restart.</p>
+</section>
+<section class="source-footnote" id="priority-bucket-note" role="doc-footnote" tabindex="-1" aria-labelledby="priority-bucket-heading">
+<div class="footnote-heading"><span class="footnote-number">[1]</span><div><div class="eyebrow">ORIGINAL SCHEDULER · CODE EXPLANATION</div><h2 id="priority-bucket-heading">Why do priorities 2–99 all share bucket 0?</h2></div></div>
+<p><strong>The division discards the fractional part before the multiplication happens.</strong> The Original Scheduler accepts 99 priority values, but its conversion to a queue index produces only two results: priority 1 goes to bucket 31, and every priority from 2 through 99 goes to bucket 0. This follows directly from the integer expression in the original code.</p>
+<p class="source-revision">All source locations below refer to the Original Scheduler at commit <code>5a4c0d7bd3f5bce844ec45795d90625659a8edf8</code>. They are original repository paths and line numbers, not lines in this JavaScript demo or a later scheduler revision.</p>
+<h3>The constants and the exact expression</h3>
+<ul class="source-locations">
+<li><code>Kernel/API/POSIX/sched.h:19</code> defines <code>THREAD_PRIORITY_MIN</code> as <code>1</code>; <code>:23</code> defines <code>THREAD_PRIORITY_MAX</code> as <code>99</code>. The same definitions also appear in <code>Kernel/API/POSIX/serenity.h:40</code> and <code>:44</code>.</li>
+<li><code>Kernel/Tasks/Scheduler.cpp:44–48</code> defines <code>ThreadReadyQueues</code>. Its <code>u32 mask</code> is 32 bits, and <code>count = sizeof(mask) * 8</code> gives <strong>32 queues</strong>, indexed 0–31.</li>
+<li><code>Kernel/Tasks/Scheduler.cpp:56–66</code> contains <code>thread_priority_to_priority_index(u32 thread_priority)</code>. Line 60 checks the valid range. <strong>Line 63 is the faulty conversion.</strong> The following is the exact source excerpt from lines 61–65:</li>
+</ul>
+<pre class="source-code"><code>constexpr u32 thread_priority_count = THREAD_PRIORITY_MAX - THREAD_PRIORITY_MIN + 1;
+static_assert(thread_priority_count &gt; 0);
+auto priority_bucket = ((thread_priority_count - (thread_priority - THREAD_PRIORITY_MIN)) / thread_priority_count) * (ThreadReadyQueues::count - 1);
+VERIFY(priority_bucket &lt; ThreadReadyQueues::count);
+return priority_bucket;</code></pre>
+<h3>Substitute the numbers, then do the integer arithmetic</h3>
+<p>Let <code>p</code> be the requested priority. The priority count is <code>99 − 1 + 1 = 99</code>, and the last bucket index is <code>32 − 1 = 31</code>. Therefore:</p>
+<pre class="source-code math-code"><code>bucket(p) = ((99 − (p − 1)) / 99) × 31
+          = ((100 − p) / 99) × 31       ← division is integer division
+          = floor((100 − p) / 99) × 31 ← equivalent for these positive values</code></pre>
+<p>The numerator and divisor are integers. C++ integer division truncates toward zero, which is the same as rounding down for these positive values. For <code>p = 1</code>, the division is <code>99 / 99 = 1</code>, giving <code>1 × 31 = 31</code>. For <strong>every</strong> <code>p</code> from <code>2</code> through <code>99</code>, the numerator is between <code>98</code> and <code>1</code>: smaller than the divisor <code>99</code>. The quotient is consequently <code>0</code>, and multiplying that zero by <code>31</code> still gives <code>0</code>.</p>
+<div class="footnote-table-wrap"><table class="footnote-table"><thead><tr><th>Requested priority</th><th>Numerator: 100 − p</th><th>Integer division by 99</th><th>Bucket: quotient × 31</th></tr></thead><tbody>
+<tr><td>1 · minimum</td><td>99</td><td>1</td><td><strong>31</strong></td></tr>
+<tr><td>2</td><td>98</td><td>0</td><td><strong>0</strong></td></tr>
+<tr><td>10 · low</td><td>90</td><td>0</td><td><strong>0</strong></td></tr>
+<tr><td>30 · normal</td><td>70</td><td>0</td><td><strong>0</strong></td></tr>
+<tr><td>50 · high</td><td>50</td><td>0</td><td><strong>0</strong></td></tr>
+<tr><td>99 · maximum</td><td>1</td><td>0</td><td><strong>0</strong></td></tr>
+</tbody></table></div>
+<p><strong>Multiplying afterward cannot recover the discarded fraction.</strong> For example, at priority 30 the actual expression gives <code>(70 / 99) × 31 = 0</code>; multiplying first would give <code>(70 × 31) / 99 = 21</code>. Those expressions are not equivalent under integer arithmetic. A full-range linear mapping could instead use <code>((99 − p) × 31) / 98</code>, with multiplication before division and the endpoint span <code>99 − 1 = 98</code>. That is an illustrative alternative; this demo faithfully runs the Original Scheduler’s expression.</p>
+<h3>How that becomes the scheduling behavior you see</h3>
+<p><code>Kernel/Tasks/Scheduler.cpp:168</code> calls the conversion when a thread is enqueued; lines <code>174–178</code> append it to that bucket and set its occupancy bit. In <code>pull_next_runnable_thread()</code>, lines <code>73–78</code> scan occupied buckets starting with the lowest numbered one, then walk its thread list. Thus priority 99 and priority 2 enter the same FIFO queue; neither gets a higher bucket than the other. Buckets 1–30 remain unused by valid priorities.</p>
+<p>Priority 1 is the exception: its bucket 31 is considered only after the earlier buckets yield no eligible queued thread. With two continuously runnable, eligible workers in bucket 0 on this single CPU, one stays queued while the other runs, so priority-1 work can starve. These consequences come from the Original Scheduler’s queue mapping and selection order; they are separate from Scheduler C’s weighted virtual-time policy.</p>
+<p class="footnote-return"><a href="#panel-A">↑ Return to the Original Scheduler</a></p>
+</section>
+<section class="source-footnote policy-note" id="not-just-a-bugfix" aria-labelledby="bugfix-heading">
+<div class="footnote-heading"><span class="policy-sign" aria-hidden="true">Original → Scheduler C</span><div><div class="eyebrow">FIXING DEFECTS AND CHOOSING POLICY</div><h2 id="bugfix-heading">Not Just a Bugfix!</h2></div></div>
+<p class="policy-question">Why is Scheduler C a proposal rather than a bug fix?</p>
+<p>The distinction is between <strong>fixing defects</strong> and <strong>choosing what priority should mean</strong>.</p>
+<p>Scheduler C fixes real problems, but it also changes scheduling policy. Repairing the original bucket calculation would make different priorities enter different queues. The original selection rule would still prefer the highest-priority eligible queue.</p>
+<p>Scheduler C instead allocates CPU service according to weights. A lower-priority thread can run while higher-priority threads remain runnable, because it is owed service under that policy.</p>
+<h3>A concrete counterexample</h3>
+<p>Assume <strong>one CPU, two permanently busy priority-99 workers, and one permanently busy priority-30 thread</strong>, all eligible to run. Repair the Original Scheduler’s bucket arithmetic so that MAX and normal priorities enter distinct buckets, while retaining its bucket-selection policy:</p>
+<div class="footnote-table-wrap"><table class="footnote-table"><thead><tr><th>Scheduler</th><th>What happens to the priority-30 thread?</th></tr></thead><tbody>
+<tr><td><strong>Original Scheduler with repaired bucket arithmetic</strong>, retaining its bucket-selection policy</td><td>It can receive <strong>no CPU time</strong>: a priority-99 worker always remains available in the preferred bucket.</td></tr>
+<tr><td><strong>Scheduler C</strong></td><td>It receives approximately <strong>6.6% of CPU service</strong> over time.</td></tr>
+</tbody></table></div>
+<p>Scheduler C’s approximate share follows from its weights:</p>
+<pre class="source-code math-code"><code>normal weight = 2,326
+MAX weight    = 16,384
+
+normal share ≈ 2,326 / (2,326 + 16,384 + 16,384)
+             ≈ 6.6%</code></pre>
+<p>Scheduler C’s integer virtual-time charges introduce a small rounding difference. This is a <strong>steady-state service-share calculation</strong>, not a latency guarantee or a QEMU measurement.</p>
+<p>Using <strong>two</strong> MAX workers makes the example hold even with the Original Scheduler’s exclusion of the current thread: the other MAX worker remains queued. Allowing the current thread to compete would not eliminate this distinction. This example demonstrates a policy difference without depending on that particular choice about the current thread.</p>
+<h3>The difference is explicit in the source</h3>
+<ul class="source-locations">
+<li><strong>Original Scheduler: choose from the lowest numbered occupied eligible bucket.</strong> See <code>Kernel/Tasks/Scheduler.cpp:68–108</code>, particularly the bucket scan at lines <code>73–78</code>, at commit <code>5a4c0d7bd3f5bce844ec45795d90625659a8edf8</code>. The arithmetic defect is at line <code>63</code>, explained in <a href="#priority-bucket-note">footnote [1]</a>.</li>
+<li><strong>Scheduler C: choose the smallest virtual time, with priority determining how quickly that time advances.</strong> See <code>Kernel/Tasks/Scheduler.cpp:29–56</code> for weights and charging, and <code>:82–108</code> for selection, at commit <code>e125986328558985179e24b5950f6121fc81ffc0</code>. The enqueue rules at <code>:169–189</code> retain existing virtual-time debt and raise a waking thread to the runnable floor.</li>
+</ul>
+<p>These are original repository paths and line numbers at the stated revisions. The project archive includes the corresponding <code>sources/A-Scheduler.cpp</code> and <code>sources/C-Scheduler.cpp</code> snapshots. Merely correcting the bucket calculation does not introduce Scheduler C’s weights, accumulated service accounting, or wakeup-floor policy.</p>
+<h3>What this says about the Original Scheduler</h3>
+<p>The Original Scheduler is compact and its queueing rules are easy to follow. It has served SerenityOS through years of development. The arithmetic bug is real; fixing it exposes a starvation problem in the bucket policy that had been hard to see while most priorities shared one queue.</p>
+<p>A.1 through A.3 show why each repair leads to another decision about CPU sharing and desktop latency. Scheduler C is a proposed answer to those policy questions. The intermediate repairs are thought experiments in this demo; the runnable comparison is between the unmodified Original Scheduler and Scheduler C. Real desktop measurements are still needed to judge the proposal.</p>
+<p class="policy-conclusion"><strong>Scheduler C is a proposed change to priority and fairness policy, motivated by bugs in the original scheduler.</strong></p>
+</section>
+<section class="source-footnote policy-note" id="is-this-eevdf" aria-labelledby="eevdf-heading">
+<div class="footnote-heading"><span class="policy-sign" aria-hidden="true">Scheduler C</span><div><div class="eyebrow">SHARED FOUNDATIONS · SIMPLER RULES</div><h2 id="eevdf-heading">Is this really just Linux's EEVDF?</h2></div></div>
+<p class="policy-question"><strong>No.</strong> EEVDF first checks which tasks are owed CPU time (their <em>lag</em>), then runs the eligible task with the earliest virtual deadline. Scheduler C simply runs the thread with the lowest virtual time. No lag test. No deadlines. <a href="https://kernel.org/doc/html/latest/scheduler/sched-eevdf.html" target="_blank" rel="noopener noreferrer">Linux’s EEVDF design</a>.</p>
+<p>EEVDF can also use a task’s requested run length to favor short jobs. Scheduler C gives each selected thread a one-tick turn. Both aim for fair CPU service; they make different choices about who runs next.</p>
+<div class="policy-subquestion">
+<h3>So, it's really just CFS?</h3>
+<p><strong>No.</strong> Scheduler C takes CFS’s core rule: charge CPU service by weight, then run the thread with the lowest virtual time. <a href="https://kernel.org/doc/html/latest/scheduler/sched-design-CFS.html" target="_blank" rel="noopener noreferrer">Linux’s CFS design</a>.</p>
+<p>It leaves out CFS’s actual elapsed-time accounting, ordered tree, variable run lengths, and wakeup preemption. The proposed 1,000 Hz timer gives Scheduler C a scheduling chance every 1 ms and makes tick accounting less coarse. It still is not CFS.</p>
+<p>My bet: that core rule plus 1,000 Hz gets SerenityOS roughly 90% of the desktop benefit we want from CFS, with a fraction of the complexity. That 90% is an estimate, not a measurement. We need real input and audio tests to see whether the missing pieces matter.</p>
+</div>
+</section>
+<section class="poingo-conclusion" aria-labelledby="poingo-conclusion-heading">
+<h2 id="poingo-conclusion-heading">So what about Poingo?</h2>
+<p>On Scheduler C, Poingo runs much more smoothly and can run with more balls. There are still brief stalls that I traced to spinlocks. That's a fix for another day.</p>
+<p>But this is a move in the right direction. Multiple desktop threads can run without starving WindowServer as much or glitching audio, and the desktop feels smoother overall. I'll upload new videos of Poingo to Discord soon.</p>
+</section>
+<footer><span>SerenityOS Scheduler Analysis <span class="footer-dot">·</span> Original Scheduler / Scheduler C source-based teaching model</span><span>Runs locally. No network. No dependencies.</span></footer>
+</div>
+<script>/*__MODEL__*/</script>
+<script>/*__APP__*/</script>
+</body></html>

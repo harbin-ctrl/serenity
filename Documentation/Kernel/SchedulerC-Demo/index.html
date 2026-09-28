@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Scheduler C - A Proposed Replacement for SerenityOS's Scheduler</title>
+<style>:root{--bg:#f4f7fa;--panel:#ffffff;--panel2:#f3f7fa;--border:#cad5df;--text:#172635;--muted:#465b6e;--dim:#61758a;--a:#a65b16;--c:#087b80;--red:#b93349;--radius:14px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 68% 0%,#e6eef4 0%,var(--bg) 54%);color:var(--text);font-size:14px;line-height:1.5}button,input,select{font:inherit}button,select{color:var(--text);background:#ffffff;border:1px solid #bdcbd7;border-radius:8px;padding:9px 14px}button{cursor:pointer;transition:background .15s,border-color .15s,transform .15s}button:hover{background:#eaf1f6;border-color:#8ba9bb}button:active{transform:translateY(1px)}button:disabled{opacity:.4;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible,.response-lane:focus-visible{outline:2px solid var(--c);outline-offset:3px}.shell{max-width:1392px;margin:auto;padding:0 36px}p{margin:0}h1,h2,h3{margin:0;font-weight:650;letter-spacing:-.025em}.masthead{display:flex;align-items:center;justify-content:space-between;padding:25px 0;border-bottom:1px solid var(--border)}.brand{color:var(--text);text-decoration:none;font-size:11px;letter-spacing:.14em;font-weight:750;display:flex;gap:10px;align-items:center}.brand-icon{font-size:17px;background:#e4f1f3;border:1px solid #acbecb;padding:1px 6px;border-radius:5px;letter-spacing:0;color:var(--c)}.brand-icon span{font-size:12px}.brand-light{color:var(--muted);font-weight:450}.model-badge{font-size:10px;letter-spacing:.14em;color:var(--muted);display:flex;align-items:center;gap:8px}.model-badge i{width:6px;height:6px;border-radius:50%;background:var(--c);box-shadow:0 0 12px #0e838d33}.intro{display:flex;justify-content:space-between;align-items:center;padding:37px 0 29px}.eyebrow{font-size:10px;letter-spacing:.17em;font-weight:700;color:var(--c)}h1{font-size:clamp(32px,3.8vw,51px);line-height:1.15;letter-spacing:-.05em;margin:9px 0 13px}.intro p{font-size:15px;color:var(--muted);line-height:1.65}.intro-note{padding:10px 8px 10px 30px;border-left:1px solid var(--border)}.note-index{font-size:31px;font-weight:300;letter-spacing:.05em}.intro-note p{font-size:12px;margin-top:7px}.scenarios{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.scenario{padding:12px 13px;text-align:left;display:flex;gap:9px;align-items:flex-start;font-size:12px;min-height:63px;background:#f9fbfc;color:var(--muted);border-color:var(--border);line-height:1.35}.scenario .number{font-family:ui-monospace,monospace;font-size:10px;opacity:.7;margin-top:2px}.scenario[aria-pressed=true]{background:#e4f3f2;border-color:#0a777a;color:#07585e}.experiment{display:flex;justify-content:space-between;align-items:center;gap:30px;padding:23px 0 19px;min-height:114px}.experiment p{max-width:940px;font-size:13px;color:#42586c;margin-top:6px}.quiet{background:transparent;white-space:nowrap;font-size:12px}.transport{display:flex;justify-content:space-between;align-items:center;background:#ecf3f7;border:1px solid var(--border);border-radius:12px 12px 0 0;padding:13px 18px;gap:15px}.playback{display:flex;align-items:center;gap:8px}.primary{min-width:103px;background:var(--c);border-color:var(--c);color:#ffffff;font-weight:750}.primary:hover{background:#09666d;border-color:#09666d}#step span{color:var(--muted);font-size:11px;margin-left:5px}.speed-label{font-size:11px;color:var(--muted);margin-left:12px;display:flex;align-items:center;gap:9px}.speed-label select{font-size:12px;padding:9px}.sim-clock{display:flex;align-items:center;gap:15px;white-space:nowrap}.sim-clock>span{font-size:9px;color:var(--muted);letter-spacing:.12em}.sim-clock strong{font-size:24px;line-height:1;font-family:ui-monospace,monospace;font-weight:500;min-width:99px;text-align:right}.sim-clock small{font-size:12px;color:var(--muted)}.input-deck{padding:12px 18px;background:#f7fafc;border:1px solid var(--border);border-top:0;border-radius:0 0 12px 12px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;gap:12px}.input-actions{display:flex;align-items:center;gap:16px}.input-button{color:var(--c);border-color:#70a9b0;background:#e8f5f5;font-size:12px}.check-label{display:flex;align-items:center;gap:6px;white-space:nowrap;color:var(--muted);font-size:11px}input[type=checkbox]{accent-color:var(--c);width:14px;height:14px}.lock-button{font-size:11px;color:#875719;background:transparent;padding:7px 9px;border-color:#a27d51}#input-status{font-size:11px;color:var(--muted);max-width:290px;text-align:right}.comparison{display:grid;grid-template-columns:1fr 1fr;gap:18px}.scheduler{border:1px solid var(--border);background:var(--panel);border-radius:var(--radius);overflow:hidden;min-width:0;--accent:var(--a)}.scheduler.c{--accent:var(--c)}.panel-head{padding:18px 19px 0;display:flex;align-items:center;gap:11px}.letter{display:flex;align-items:center;justify-content:center;border-radius:9px;width:37px;height:37px;border:1px solid var(--accent);color:var(--accent);font-size:22px;font-weight:600;background:color-mix(in srgb,var(--accent) 9%,transparent)}.panel-head h2{font-size:18px;line-height:1.3}.panel-head p{color:var(--muted);font-size:11px}.turn-badge{margin-left:auto;border:1px solid var(--border);color:var(--muted);border-radius:20px;padding:3px 9px;font-size:10px;white-space:nowrap}.panel-description{font-size:12px;color:var(--muted);padding:13px 19px 0;min-height:63px;line-height:1.5}.machine{width:100%;height:auto;display:block;background:linear-gradient(180deg,transparent,#ecf1f58a);overflow:visible}.machine text{font-family:inherit}.machine .svg-label{font-size:10px;letter-spacing:.09em;fill:#546779}.machine .svg-muted{font-size:10px;fill:#64778a}.machine .task-token{transition:transform .17s ease,opacity .25s}.machine .clock-dot{transition:cx .17s,cy .17s}.machine .clock-line{transition:x2 .17s}.cpu-box{fill:#ffffff;stroke:#94a9b7;stroke-width:1.5}.cpu-box.active{stroke:var(--accent)}.cpu-name{font-size:12px;fill:var(--text);font-weight:650}.cpu-caption{font-size:10px;fill:var(--muted)}.cpu-progress{fill:var(--accent);transition:width .25s}.lock-curtain{fill:#ffead9e8;stroke:#a14c64}.decision{margin:0 16px 15px;padding:10px 11px;border-left:2px solid var(--accent);background:#f0f5f8;min-height:59px;font-size:11px;color:#33495d}.timeline-area{padding:0 18px 16px}.mini-label{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);letter-spacing:.11em;font-weight:650;margin-bottom:7px}.mini-label span:last-child{font-weight:400;letter-spacing:0;color:var(--dim)}.timeline{display:flex;align-items:stretch;height:27px;gap:1px;border-radius:4px;overflow:hidden;background:#e9eff4}.tick{flex:1;min-width:0;background:#d9e3ec}.tick.locked{background-image:repeating-linear-gradient(135deg,#0006 0,#0006 3px,transparent 3px,transparent 6px)}.tick.future{background:#e5edf3}.response-area{border-top:1px solid var(--border);padding:15px 18px 13px}.response-lane{height:51px;position:relative;cursor:crosshair;border:1px solid #b0c2d1;border-radius:7px;background:linear-gradient(90deg,#f7fafc,#ebf3f8);overflow:hidden}.response-lane:before{content:"";position:absolute;height:1px;background:#afbfcc;top:25px;left:15px;right:15px}.response-lane:after{content:"CLICK ANYWHERE TO SET A TARGET";position:absolute;left:10px;bottom:3px;font-size:7px;letter-spacing:.11em;color:#627789}.target-dot,.actual-dot{position:absolute;top:16px;border-radius:50%;width:17px;height:17px;margin-left:-8px}.target-dot{border:1.5px dashed #42596d;background:#ffffff;z-index:1}.actual-dot{background:var(--accent);box-shadow:0 0 18px color-mix(in srgb,var(--accent) 30%,transparent);z-index:2;transition:left .18s ease}.response-caption{font-size:10px;color:var(--muted);margin-top:6px;display:flex;justify-content:space-between}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:13px}.metric strong{display:block;font-family:ui-monospace,monospace;font-size:20px;font-weight:500;line-height:1.25}.metric span{font-size:9px;letter-spacing:.05em;color:var(--muted)}.metric.alert strong{color:var(--red)}.shares{padding:15px 18px 18px;border-top:1px solid var(--border)}.share-row{display:grid;grid-template-columns:109px 1fr 40px;gap:8px;align-items:center;margin-top:8px;font-size:10px}.task-name{display:flex;gap:6px;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.swatch{display:inline-block;flex-shrink:0;height:6px;width:6px;border-radius:2px;background:var(--task-color)}.share-track{height:5px;border-radius:5px;background:#dfe8ee;overflow:hidden}.share-fill{height:100%;background:var(--task-color);transition:width .2s;border-radius:5px}.share-number{font-family:ui-monospace,monospace;text-align:right;color:#465b6d;font-size:10px}.never{color:var(--red)!important}.workbench{margin-top:25px;padding:22px 24px;background:#ffffff;border:1px solid var(--border);border-radius:var(--radius)}.section-heading{display:flex;align-items:center;justify-content:space-between}.section-heading h2{font-size:20px;margin-top:4px}.section-note{color:var(--muted);font-size:11px;margin:8px 0 16px}.task-list{display:grid;grid-template-columns:repeat(2,1fr);column-gap:30px}.task-row{display:grid;grid-template-columns:minmax(115px,1fr) 104px 95px 78px;gap:9px;align-items:center;border-top:1px solid var(--border);padding:11px 0}.task-title{font-size:12px}.task-title small{display:block;color:var(--muted);font-size:9px;margin-left:12px}.priority-control{display:flex;align-items:center;gap:5px;color:var(--muted);font-size:10px}.priority-control input{width:50px;padding:4px 5px;border:1px solid #42536a;border-radius:5px;background:#f8fafc;color:var(--text)}.task-weight{font-size:9px;color:var(--muted)}.task-weight strong{font-weight:500;color:#223648}.task-row button{font-size:10px;padding:5px 7px}.gui-badge{font-size:9px;text-align:center;color:var(--c)}.takeaway{padding:23px 25px;display:flex;gap:17px;background:linear-gradient(110deg,#e1f4f1aa,#ffffff);border:1px solid #afcad1;border-radius:var(--radius);margin-top:20px}.takeaway-icon{font-size:29px;color:var(--c);line-height:1}.takeaway h2{font-size:15px;letter-spacing:-.01em;margin-bottom:5px}.takeaway p{font-size:12px;line-height:1.65;color:#43576a;max-width:1100px}.method{margin-top:22px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}.method summary{padding:19px 0;color:#334b5f;cursor:pointer;font-size:12px;list-style:none}.method summary::-webkit-details-marker{display:none}.method summary span{float:right;color:var(--c);font-size:20px;line-height:17px}.method[open] summary span{transform:rotate(45deg)}.method-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px 35px;padding:5px 0 26px}.method h3{font-size:14px;margin-bottom:10px}.method p{font-size:12px;color:var(--muted);margin-top:9px}.method pre{background:#f1f5f8;padding:12px;border:1px solid var(--border);font-size:11px;white-space:pre-wrap;color:#284458}.method code{color:#284458}kbd{border:1px solid #a9bac8;border-radius:3px;padding:1px 4px;font-size:10px}footer{padding:22px 0 30px;display:flex;justify-content:space-between;font-size:10px;color:var(--dim)}.footer-dot{padding:0 7px}body.fast .task-token,body.fast .clock-dot,body.fast .clock-line,body.fast .share-fill{transition:none}@media(prefers-reduced-motion:reduce){*{transition:none!important}}@media(min-width:1500px){.shell{max-width:1450px}}@media(max-width:1100px){.shell{padding:0 22px}.input-deck{flex-wrap:wrap}#input-status{text-align:left;max-width:none}.task-list{grid-template-columns:1fr}.intro-note{display:none}.sim-clock>span{display:none}.speed-label{margin-left:0}.scenario{padding:10px 9px;font-size:11px}.task-row{grid-template-columns:1fr 120px 140px 90px}.panel-description{min-height:80px}}@media(max-width:760px){.shell{padding:0 14px}.brand-light{display:none}.masthead{padding:18px 0}.intro{padding:25px 0}.intro p{font-size:13px}.wide-only{display:none}.scenarios{grid-template-columns:repeat(5,148px);overflow-x:auto;padding-bottom:5px}.scenario{min-height:60px}.experiment{gap:12px;padding:17px 0}.experiment p{font-size:12px}.transport{padding:12px;flex-wrap:wrap}.speed-label{font-size:0}.speed-label select{max-width:133px;padding:9px 5px;font-size:10px}.playback{gap:5px}.playback button{padding:9px 10px;font-size:12px}.primary{min-width:78px}#step span{display:none}.sim-clock{width:100%;justify-content:space-between}.sim-clock>span{display:inline;font-size:9px}.sim-clock strong{font-size:20px}.input-deck{padding:12px}.input-actions{gap:9px;flex-wrap:wrap}.comparison{grid-template-columns:1fr;gap:18px}.panel-description{min-height:0}.machine{margin-top:10px}.workbench{padding:18px 14px}.task-row{grid-template-columns:1fr 90px 69px;gap:5px}.task-weight{display:none}.method-grid{grid-template-columns:1fr}.takeaway{padding:18px 15px}.takeaway-icon{display:none}footer{gap:15px;flex-direction:column}.turn-badge{font-size:9px}.section-heading h2{font-size:18px}}
+
+@media(min-width:761px){.console{position:sticky;top:8px;z-index:20;border-radius:12px;background:#f4f7fa;box-shadow:0 9px 24px #35536a1a}.console .input-deck{margin-bottom:22px}}
+
+/* Original Scheduler priority mapping: conspicuous references and an always-visible endnote. */
+.footnote-ref{display:inline-flex;align-items:center;justify-content:center;min-height:25px;padding:2px 8px;margin-left:4px;border:1px solid #ffce84;border-radius:5px;background:#ffd18b;color:#302008;font-size:11px;font-weight:850;letter-spacing:.035em;line-height:1.4;text-decoration:none;vertical-align:middle;white-space:nowrap;box-shadow:0 0 0 2px #ffd18b14}
+.footnote-ref:hover{background:#ffe7bf;color:#171005;box-shadow:0 0 0 3px #ffd18b35}
+.footnote-ref:focus-visible,.svg-footnote-ref:focus-visible,.footnote-return a:focus-visible{outline:3px solid var(--c);outline-offset:4px}
+.svg-footnote-ref{cursor:pointer}.svg-footnote-ref rect{fill:#ffd18b;stroke:#ffdfad;stroke-width:1.5}.svg-footnote-ref text{fill:#302008;font-size:11px;font-weight:850;letter-spacing:.03em}.svg-footnote-ref:hover rect{fill:#ffe7bf}
+.source-footnote{margin-top:26px;padding:27px 30px;border:1px solid #b99a74;border-left:4px solid var(--a);border-radius:12px;background:linear-gradient(120deg,#fff9f1,#ffffff 50%);scroll-margin-top:20px;line-height:1.7}
+.source-footnote:target{border-color:#ffd18b;box-shadow:0 0 0 3px #ffd18b20}.source-footnote:focus{outline:none}
+.footnote-heading{display:flex;align-items:center;gap:15px;margin-bottom:18px}.footnote-number{display:flex;flex-shrink:0;align-items:center;justify-content:center;width:47px;height:47px;border-radius:9px;background:#ffd18b;color:#302008;font-size:23px;font-weight:800}.footnote-heading .eyebrow{color:var(--a)}.footnote-heading h2{font-size:23px;line-height:1.3;margin-top:4px}
+.source-footnote p,.source-locations{font-size:13px;color:#465b6c;margin:12px 0}.source-footnote strong{color:#172635}.source-footnote h3{font-size:16px;margin-top:24px;color:#8a501a}.source-footnote code{color:#5b4834;font-size:.94em;overflow-wrap:anywhere}.source-revision{padding:12px 15px;border:1px solid #d8caba;border-radius:6px;background:#fffdf9}.source-locations{padding-left:21px}.source-locations li{margin:9px 0}.source-code{margin:15px 0;padding:16px;background:#f7f9fb;border:1px solid #cad7df;border-radius:7px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.75;font-size:12px}.source-code code{font-size:inherit;color:#253e52}.math-code{border-left:3px solid var(--a)}
+.footnote-table-wrap{overflow-x:auto}.footnote-table{width:100%;border-collapse:collapse;margin:14px 0;font-size:12px;text-align:left}.footnote-table th{background:#e6eff4;color:#754818;font-weight:650}.footnote-table th,.footnote-table td{padding:10px 13px;border:1px solid #c8d4dd}.footnote-table td{color:#344a5c}.footnote-table tr:nth-child(even) td{background:#f5f8fa}.footnote-return a{color:var(--a);font-weight:650;text-underline-offset:4px}#panel-A{scroll-margin-top:180px}
+@media(max-width:760px){.source-footnote{padding:20px 15px;scroll-margin-top:16px}.footnote-heading{align-items:flex-start;gap:11px}.footnote-heading h2{font-size:20px}.footnote-number{width:39px;height:39px;font-size:20px}.source-code{padding:12px;font-size:11px}.footnote-table th,.footnote-table td{padding:8px;min-width:95px}#panel-A{scroll-margin-top:16px}}
+
+/* Policy discussion following the source footnote. */
+.policy-note{border-color:#a1cfd1;border-left-color:var(--c);background:linear-gradient(120deg,#eef9f8,#ffffff 55%)}
+.policy-note .eyebrow,.policy-note h3{color:var(--c)}
+.policy-sign{display:flex;flex-shrink:0;align-items:center;justify-content:center;min-width:77px;height:47px;padding:0 12px;border:1px solid #7aacaf;border-radius:9px;background:#e3f2f2;color:#09666d;font-size:20px;font-weight:650}
+.policy-note .policy-question{font-size:16px;color:#22394b;line-height:1.65;margin:18px 0}
+
+.policy-note .math-code{border-left-color:var(--c)}
+.policy-note a{color:var(--c);text-underline-offset:3px}.policy-note a:focus-visible{outline:2px solid var(--c);outline-offset:3px}
+.policy-note .policy-conclusion{margin-top:23px;padding:16px 18px;border:1px solid #9dc8c8;border-radius:7px;background:#e8f5f4;font-size:15px}
+@media(max-width:760px){.policy-sign{min-width:62px;height:39px;padding:0 8px;font-size:16px}.policy-note .policy-question{font-size:14px}}
+
+/* Readable type scale throughout the simulation and its explanations. */
+:root{--muted:#465b6e;--dim:#61758a}
+body{font-size:16px;line-height:1.58}
+.brand{font-size:13px}.model-badge,.eyebrow{font-size:12px}
+.intro p{font-size:17px}.intro-note p{font-size:14px}
+.scenario{font-size:14px;min-height:72px}.scenario .number{font-size:12px}
+.experiment p{font-size:15px}.quiet{font-size:14px}
+#step span,.speed-label,.speed-label select,.sim-clock>span,#input-status{font-size:13px}
+.input-button,.lock-button,.check-label{font-size:14px}
+.panel-head h2{font-size:21px}.panel-head p,.turn-badge{font-size:13px}
+.panel-description{font-size:15px;line-height:1.6;min-height:77px}
+.machine .svg-label{font-size:12px}.machine .svg-muted{font-size:11.5px}
+.machine .cpu-name{font-size:14px}.machine .cpu-caption{font-size:12px}
+.machine .task-token text:first-of-type{font-size:10px}
+.machine .task-token text:last-of-type{font-size:9px}
+.machine [data-clock-row] text:first-of-type{font-size:12px}
+.machine [data-clock-row] text:nth-of-type(2){font-size:9px}
+.machine [data-clock-number]{font-size:10px}
+.svg-footnote-ref text{font-size:12px}
+.decision{font-size:14px;line-height:1.55;min-height:78px}
+.mini-label{font-size:11px;letter-spacing:.075em}
+.response-caption{font-size:12px}.metric strong{font-size:22px}.metric span{font-size:11px}
+.share-row{font-size:12px;grid-template-columns:120px 1fr 53px;margin-top:10px}
+.share-number{font-size:12px}.share-track{height:7px}
+.section-heading h2{font-size:24px}.section-note{font-size:14px}
+.task-title{font-size:14px}.task-title small{font-size:11px}
+.priority-control,.task-weight,.task-row button,.gui-badge{font-size:12px}
+.priority-control input{font-size:14px;width:53px}
+.task-row{grid-template-columns:minmax(115px,1fr) 114px 110px 82px}
+.takeaway h2{font-size:19px}.takeaway p{font-size:15px}
+.method summary{font-size:16px}.method h3{font-size:18px}
+.method p{font-size:15px}.method pre{font-size:14px;line-height:1.55}
+.method code{font-size:14px}kbd{font-size:12px}
+footer{font-size:12px}
+.footnote-ref{font-size:13px}.source-footnote p,.source-locations{font-size:15px}
+.footnote-heading h2{font-size:27px}.source-footnote h3{font-size:19px}
+.source-footnote code{font-size:.96em}.source-code{font-size:14px;line-height:1.7}
+.footnote-table{font-size:14px}.footnote-table th,.footnote-table td{padding:12px 14px}
+.policy-note .policy-question{font-size:18px}
+.policy-note .policy-conclusion{font-size:17px}
+@media(max-width:1100px){.scenario{font-size:13px}.task-row{grid-template-columns:minmax(110px,1fr) 125px 135px 88px}.panel-description{min-height:96px}}
+@media(max-width:760px){
+ .intro p{font-size:16px}.scenario{font-size:14px;min-height:76px}
+ .scenarios{grid-template-columns:repeat(5,175px)}.experiment p{font-size:14px}
+ .panel-description{min-height:0;font-size:15px}
+ .machine-scroll{overflow-x:auto;overscroll-behavior-x:contain;scrollbar-color:#708da1 #e6eef4;scrollbar-width:thin}
+ .machine{width:600px;min-width:600px;max-width:none;margin-top:0}
+ .machine-scroll:after{content:'Swipe board sideways to see the CPU →';display:block;position:sticky;left:0;padding:3px 15px 6px;color:var(--muted);font-size:12px;background:#f7fafc}
+ .task-row{grid-template-columns:minmax(0,1fr) 110px 70px}
+ .task-row button{font-size:12px}.share-row{grid-template-columns:106px 1fr 49px}
+ .footnote-heading h2{font-size:23px}.source-code{font-size:12px}
+ .footnote-table th,.footnote-table td{padding:9px;min-width:110px}
+ .policy-note .policy-question{font-size:16px}
+ .sim-clock>span{font-size:12px}.speed-label select{font-size:12px}
+}
+
+/* Keep the smallest on-screen labels legible, including the task tokens. */
+.machine .svg-label{font-size:13px}.machine .svg-muted{font-size:12px}
+.machine .task-token text:first-of-type{font-size:11px}
+.machine .task-token text:last-of-type{font-size:10px}
+.machine [data-clock-row] text:nth-of-type(2){font-size:10px}
+.machine [data-clock-number]{font-size:11px}
+.mini-label,.metric span,.task-title small,.gui-badge{font-size:12px}
+.response-lane:after{font-size:10px;letter-spacing:.055em}
+.share-row,.share-number{font-size:13px}
+@media(max-width:760px){.source-code{font-size:13px}}
+
+/* The injected lock overlay must cover the CPU labels in the light palette. */
+.lock-curtain{fill:#fff0e7}
+/* Whitepaper edition: quiet paper, strong hierarchy, and a friendly reading scale. */
+:root{
+  --bg:#ecefeb;--panel:#fff;--panel2:#f7f8f5;--border:#d9dfda;
+  --text:#20312e;--muted:#51645f;--dim:#64746f;
+  --a:#925221;--c:#126c68;--red:#a73742;--radius:8px;
+  --sans:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:ui-monospace,monospace;
+  font-family:var(--sans)
+}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:16px;line-height:1.65}
+.shell{max-width:1432px;min-height:100vh;padding:0 48px;background:#fff;box-shadow:0 10px 44px #20332d16;border-left:1px solid #dfe4df;border-right:1px solid #dfe4df}
+h1,h2,h3{letter-spacing:-.025em}
+h1,.section-heading h2,.takeaway h2,.footnote-heading h2{font-family:var(--sans)}
+h1{font-size:clamp(32px,3.1vw,44px);font-weight:650;letter-spacing:-.04em;line-height:1.18;margin:15px 0 20px;max-width:940px}
+.masthead{padding:25px 0 22px;border-color:#cbd4ce}
+.brand{font-size:14px;letter-spacing:.11em;font-weight:700;gap:8px}
+.brand-light{color:#60716a;font-weight:400}
+.model-badge{font-size:11px;letter-spacing:.095em;color:#59736c}
+.model-badge i{background:var(--c);box-shadow:none;width:7px;height:7px}
+.intro{align-items:flex-end;padding:54px 0 45px;gap:45px}
+.intro p{font-size:18px;line-height:1.7;color:#455b54;max-width:690px}
+.eyebrow{font-size:12px;letter-spacing:.115em;color:var(--c);font-weight:700}
+.intro-note{padding:9px 0 9px 22px;border-left:3px solid #c5dbd5;min-width:220px}
+.note-index{font-family:var(--sans);font-size:26px;font-weight:400;line-height:1.2;letter-spacing:-.04em;color:var(--c);white-space:nowrap}
+.intro-note p{font-size:14px;line-height:1.55;color:var(--muted);margin-top:9px}
+.scenarios{gap:0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.scenario{border:0;border-bottom:3px solid transparent;border-radius:0;background:#fff;color:#4d625b;min-height:82px;padding:18px 15px 15px;font-size:14px;font-weight:700;line-height:1.42;gap:11px}
+.scenario + .scenario{border-left:1px solid #e7ebe7}
+.scenario:hover{background:#f5f8f5;border-color:#b7d4cd}
+.scenario[aria-pressed=true]{background:#eef5f2;border-color:var(--c);color:#125c58}
+.scenario .number{font-family:var(--mono);font-size:12px;font-weight:400;color:#7a8b83;opacity:1;margin-top:2px}
+.experiment{min-height:116px;padding:25px 0 22px;border-bottom:1px solid #e8ebe7}
+.experiment p{font-size:15px;line-height:1.65;color:var(--muted);margin-top:6px}
+button,select{border-color:#bbc9c1;border-radius:6px;background:#fff;color:var(--text)}
+button:hover{background:#f0f6f2;border-color:#87ada0}
+.quiet{font-size:14px;color:var(--c);border-color:#bdd1c8;background:#fff}
+.console{background:#fff}
+.transport{background:#f3f6f2;border-color:#d8e1d9;border-radius:8px 8px 0 0;padding:15px 18px}
+.primary{background:var(--c);border-color:var(--c);color:#fff}
+.primary:hover{background:#0c5753;border-color:#0c5753}
+#step span,.speed-label,.speed-label select{font-size:13px}
+.sim-clock strong{font-family:var(--mono);font-size:24px;color:#153c37}
+.sim-clock>span{font-size:11px;letter-spacing:.1em}
+.input-deck{background:#fbfcfa;border-color:#d8e1d9;border-radius:0 0 8px 8px}
+.input-button{background:#eaf4f0;border-color:#a8cec0;color:#105d58}
+.lock-button{border-color:#d5b693;color:#80501e;background:#fffaf3}
+#input-status,.check-label{color:var(--muted)}
+.comparison{gap:22px}
+.scheduler{border-color:#d8dfd9;border-top:3px solid var(--accent);box-shadow:0 4px 16px #1d302b0a}
+.panel-head{padding-top:19px}
+.letter{width:38px;height:38px;border-radius:5px;font-family:var(--sans);font-size:23px;font-weight:600;background:color-mix(in srgb,var(--accent) 8%,white)}
+.panel-head h2{font-size:21px;letter-spacing:-.025em}
+.panel-head p{font-size:13px}
+.turn-badge{font-size:12px;border-color:#d8dfd9;background:#f8faf7}
+.panel-description{font-size:15px;color:var(--muted);line-height:1.6}
+.machine{background:#fbfcfa}
+.machine text{font-family:var(--sans)}
+.machine .svg-label{fill:#45605a}
+.machine .svg-muted{fill:#637a71}
+.machine .cpu-box{fill:#fff;stroke:#b2c2b9}
+.machine .cpu-caption{fill:#52665e}
+.decision{background:#f7f9f6;color:#344b43;border-left-width:3px;font-size:14px}
+.mini-label{color:#4c655b}
+.timeline,.tick.future{background:#e9eee9}
+.response-lane{border-color:#b7c9bc;background:#f6faf6}
+.response-lane:before{background:#bbc9bd}
+.response-lane:after{color:#516b5e}
+.response-caption,.metric span{color:#536b60}
+.metric strong,.share-number{font-family:var(--mono)}
+.share-track{background:#e6ece7}
+.share-number{color:#415a51}
+.workbench{background:#fff;border-color:#d8dfd9;margin-top:28px;padding:26px 28px}
+.section-heading h2{font-weight:650;font-size:28px;line-height:1.25;margin-top:6px}
+.section-note{font-size:14px;color:var(--muted);margin:12px 0 18px}
+.task-row{border-color:#e1e7e1}
+.task-title{font-size:14px}
+.task-title small{color:#657a6d}
+.task-weight strong{color:#314b3e}
+.priority-control input{background:#fff;border-color:#aebfb0}
+.takeaway{background:#f2f7f3;border:0;border-left:4px solid var(--c);border-radius:3px;margin-top:26px;padding:25px 28px}
+.takeaway-icon{color:#5b927a}
+.takeaway h2{font-size:24px;font-weight:650;margin-bottom:7px}
+.takeaway p{font-size:15px;color:#40584d;line-height:1.7}
+.method{margin-top:29px;border-color:#d6dfd6}
+.method summary{font-size:16px;font-weight:700;color:#234a3e;padding:21px 0}
+.method h3{font-size:18px;color:#243c33}
+.method p{font-size:15px}
+.method pre,.source-code{font-family:var(--mono);background:#f7f8f5;border-color:#d8e0d7;color:#304438}
+.method code,.source-code code{font-family:var(--mono);color:#304438}
+kbd{font-family:var(--mono)}
+.source-footnote{margin-top:32px;background:#fff;border-color:#dce2da;border-left-color:var(--a);border-radius:4px;padding:32px 36px;line-height:1.75}
+.source-footnote:target{border-color:#c69759;box-shadow:0 0 0 3px #b57a2c1f}
+.footnote-number{border-radius:4px;background:#f1e4d2;color:#7a4419;font-family:var(--sans)}
+.footnote-heading h2{font-size:30px;font-weight:650;line-height:1.3}
+.source-footnote p,.source-locations{font-size:16px;color:#40554a}
+.source-footnote strong{color:#1e342b}
+.source-footnote h3{font-size:20px;color:#805024}
+.source-revision{background:#faf9f5;border-color:#dfd9cb}
+.source-code{font-size:14px;line-height:1.7}
+.footnote-table{font-size:14px}
+.footnote-table th{background:#f0f4ef;color:#324e3a}
+.footnote-table th,.footnote-table td{border-color:#d5ddd4}
+.footnote-table td{color:#3b5043}
+.footnote-table tr:nth-child(even) td{background:#f8faf7}
+.policy-note{border-left-color:var(--c);background:#fff}
+.policy-sign{border-radius:4px;background:#e5f1ea;border-color:#b8d3c2;color:var(--c);font-family:var(--sans);font-size:15px;font-weight:700;white-space:nowrap}
+/* A plain status replaces the former input-position strip. */
+.response-summary{display:flex;align-items:center;justify-content:space-between;gap:18px;min-height:88px;padding:15px 17px;border:1px solid #d6e0d8;border-left:4px solid #aabcb0;border-radius:6px;background:#f8faf7}
+.response-summary.waiting{border-left-color:var(--a);background:#fdf9f3}
+.response-summary.complete{border-left-color:var(--c);background:#f3f9f5}
+.response-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
+.response-kicker{font-size:11px;font-weight:700;letter-spacing:.1em;color:#596d5d}
+.response-summary.waiting .response-kicker{color:var(--a)}
+.response-summary.complete .response-kicker{color:var(--c)}
+.response-copy strong{font-size:18px;line-height:1.35;color:var(--text)}
+.response-detail{font-size:13px;line-height:1.5;color:var(--muted)}
+.response-send{flex-shrink:0;white-space:nowrap;font-size:13px;font-weight:650;color:var(--c);border-color:#a7c7b6;background:#fff}
+.response-caption{margin-top:8px;font-size:12px}
+@media(max-width:760px){.response-summary{align-items:flex-start;flex-wrap:wrap;gap:12px;padding:14px}.response-send{width:100%}}
++
+/* Live wait averages sit directly below input response in each panel. */
+.scenarios{grid-template-columns:repeat(5,minmax(0,1fr))}
+.workbench-actions{display:flex;flex-wrap:wrap;gap:8px}
+#load-mixed[aria-pressed="true"]{background:#e5f2eb;border-color:#9bbda8;color:#2c6244}
+.wait-panel{padding:19px 18px 20px;border-top:1px solid var(--border);background:#fcfdfa}
+.wait-heading{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px}
+.wait-heading h3{font-size:19px;line-height:1.3;color:var(--text)}
+.wait-heading span{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.wait-explainer{font-size:14px;line-height:1.5;color:var(--muted);margin-top:5px}
+.wait-panel-rows{margin-top:12px}
+.wait-row{display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr);gap:3px 12px;align-items:center;padding:10px 0;border-top:1px solid #e1e8df}
+.wait-task{display:flex;flex-direction:column;gap:1px;min-width:0}
+.wait-task strong{font-size:15px;line-height:1.3;color:var(--text)}
+.wait-task span{font-size:12px;line-height:1.3;color:var(--muted);overflow-wrap:anywhere}
+.wait-series{display:grid;grid-template-columns:minmax(0,1fr) 93px;gap:9px;align-items:center}
+.wait-track{height:13px;background:#e7ede7;border-radius:3px;overflow:hidden}
+.wait-fill{display:block;height:100%;border-radius:3px;background:var(--accent);transition:width .2s}
+.wait-value{font-family:var(--mono);font-size:14px;font-weight:600;text-align:right;color:var(--text);white-space:nowrap}
+.wait-pending{grid-column:2;font-size:12px;line-height:1.3;color:var(--a)}
+.wait-pending.empty{color:var(--muted)}
+.takeaway[hidden]{display:none}
+.wait-panel-note{padding-top:9px;border-top:1px solid #e1e8df;font-size:12px;line-height:1.45;color:var(--muted)}
+@media(max-width:760px){
+  .scenarios{grid-template-columns:repeat(5,178px)}
+  .section-heading{align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .wait-panel{padding:17px 15px}
+  .wait-heading{align-items:flex-start}
+  .wait-heading span{font-size:11px}
+  .wait-row{grid-template-columns:minmax(0,104px) minmax(0,1fr);gap:3px 7px}
+  .wait-task strong{font-size:14px}.wait-task span{font-size:11px}
+  .wait-series{grid-template-columns:minmax(0,1fr) 86px;gap:5px}
+  .wait-value{font-size:12px}.wait-pending{font-size:11px}
+}
+.policy-note .policy-question{font-size:18px;color:#253d31}
+
+
+.policy-note .policy-conclusion{background:#edf5ee;border-color:#bfd6c3;font-size:17px}
+.policy-subquestion{margin-top:26px;padding-top:18px;border-top:1px solid #d9e4dc}
+.policy-subquestion h3{margin-top:0}
+.scheduler-introduction{margin:0 0 32px;padding:25px 28px;border:1px solid var(--border);border-radius:8px;background:#fff}
+.scheduler-introduction h2{font-size:26px;line-height:1.3;margin-bottom:12px}
+.scheduler-introduction p{font-size:16px;line-height:1.65;color:var(--muted);max-width:1050px;margin:12px 0}
+.scheduler-introduction .intro-assumption{font-size:14px;color:var(--dim)}
+.scheduler-introduction a{color:var(--c);text-underline-offset:3px}
+.intro-stage{display:grid;grid-template-columns:205px minmax(0,1fr);gap:22px;padding:17px 0;border-top:1px solid var(--border)}
+.intro-stage h3,.intro-proposal h3{font-size:18px;line-height:1.4;color:var(--text)}
+.intro-stage p{margin:0}
+.intro-proposal{border-top:2px solid var(--c);margin-top:22px;padding-top:20px}
+.intro-proposal h3{font-size:23px;color:var(--c)}
+@media(max-width:760px){.scheduler-introduction{padding:20px 17px}.scheduler-introduction h2{font-size:24px}.intro-stage{grid-template-columns:1fr;gap:8px;padding:16px 0}.scheduler-introduction p{font-size:16px}}
+footer{font-size:12px;color:#697c6d}
+.footnote-ref,.svg-footnote-ref rect{background:#f1deb7;border-color:#c68b3d;box-shadow:none}
+.footnote-ref{color:#5b370e;font-size:13px}
+.svg-footnote-ref rect{fill:#f1deb7;stroke:#c68b3d}
+.svg-footnote-ref text{fill:#5b370e}
+@media(min-width:761px){
+  .console{top:0;background:#fff;border-radius:0;box-shadow:0 8px 18px #23362d13}
+  .console .input-deck{margin-bottom:22px}
+}
+@media(max-width:1100px){
+  .shell{padding:0 28px}
+  .intro{padding:43px 0 36px}
+  .scenario{font-size:13px;padding:16px 10px}
+}
+@media(max-width:760px){
+  body{background:#fff}
+  .shell{padding:0 17px;border:0;box-shadow:none}
+  .masthead{padding:18px 0}
+  .brand{font-size:12px}
+  .model-badge{font-size:10px}
+  .intro{padding:36px 0 32px}
+  h1{font-size:clamp(30px,8vw,36px);margin:14px 0 16px}
+  .intro p{font-size:16px}
+  .scenarios{grid-template-columns:repeat(5,178px);overflow-x:auto}
+  .scenario{font-size:14px;min-height:79px}
+  .experiment{padding:22px 0}
+  .transport{padding:13px}
+  .comparison{gap:22px}
+  .machine-scroll:after{background:#fbfcfa}
+  .workbench{padding:22px 17px}
+  .section-heading h2{font-size:26px}
+  .takeaway{padding:20px 17px}
+  .takeaway h2{font-size:22px}
+  .source-footnote{padding:22px 17px}
+  .footnote-heading h2{font-size:25px}
+  .policy-note .policy-question{font-size:17px}
+}
+
+/* Brief, always-visible model notes. */
+.method{padding:22px 0}.method p{font-size:17px;line-height:1.65;margin:0 0 12px}.method p:last-child{margin-bottom:0}
+
+/* First-person motivation before the scheduler walkthrough. */
+.pre-intro{max-width:1050px;margin:0 0 32px;padding:24px 0 25px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.pre-intro h2{font-size:clamp(23px,2.5vw,30px);line-height:1.25;margin-bottom:15px}
+.pre-intro p{font-size:17px;line-height:1.68;color:var(--text);margin:0 0 16px}
+.pre-intro p:last-child{margin-bottom:0;font-weight:650}
+
+/* First-person close to the proposal. */
+.poingo-conclusion{max-width:1050px;margin:32px 0 36px;padding:25px 0;border-top:2px solid var(--c)}
+.poingo-conclusion h2{font-size:clamp(23px,2.5vw,30px);line-height:1.25;margin-bottom:15px}
+.poingo-conclusion p{font-size:17px;line-height:1.68;margin:0 0 16px}
+.poingo-conclusion p:last-child{margin-bottom:0}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="masthead"><a class="brand" href="#">SERENITYOS <span class="brand-light">/ SCHEDULER ANALYSIS</span></a><div class="model-badge"><i></i> INTERACTIVE MODEL · ONE CPU</div></header>
+<section class="intro"><div><div class="eyebrow">SCHEDULER PROPOSAL · INTERACTIVE ANALYSIS</div><h1>Scheduler C - A Proposed Replacement for SerenityOS's Scheduler</h1><p>Compare Scheduler C with the Original Scheduler through interactive workloads, with a focus on task priority, CPU allocation, and responsiveness.</p></div><div class="intro-note"><span class="note-index">Original → Scheduler C</span><p>Original priority queues<br>vs. weighted virtual time</p></div></section>
+<section class="pre-intro" aria-labelledby="poingo-intro-heading">
+<h2 id="poingo-intro-heading">What Poingo exposed</h2>
+<p>I made a cute retro bouncing-ball demo called Poingo and showed it off in the SerenityOS Discord channels. It ran fairly well with one ball. Then I turned it up: five more balls, for a total of six bouncing around the desktop. It looked neat, but it stuttered. After a few balls, it started to break down.</p>
+<p>Other operating systems could run it on the same hardware. Why was SerenityOS struggling? One thing I truly respect about SerenityOS is that it is simple enough to reason about. I miss that from the earlier days of computing. I also like that it puts the desktop first, instead of being a server OS wearing a desktop hat. I wanted Poingo to run well here, so I dug in.</p>
+<p>I found two classes of problems. The scheduler wasn't giving higher-priority parts of the system enough CPU time: WindowServer was getting a little starved by Poingo, and audio started glitching as I added balls.</p>
+<p>Then there were the blunt stalls. Poingo would just <em>stop</em> for a few frames. That went beyond scheduling. After investigating and instrumenting the kernel, I traced those stalls to two back-to-back spinlocks in WindowServer.</p>
+<p>Both problems need work. This page is about the scheduler.</p>
+</section>
+<section class="scheduler-introduction" aria-labelledby="scheduler-introduction-heading">
+<h2 id="scheduler-introduction-heading">Start with the Original Scheduler</h2>
+<p>SerenityOS already has a scheduler. Before replacing it, let’s try fixing it, one problem at a time.</p>
+<p class="intro-assumption">A.1, A.2, and A.3 below are hypothetical repairs. These examples assume one CPU and busy threads that keep wanting more CPU time.</p>
+<div class="intro-stage"><h3>The original</h3><p>There are 99 priority values and 32 queues, or “buckets.” But an integer arithmetic <strong>bug</strong> puts priorities 2–99 into the same bucket, leaving priority 1 in the bottom bucket. LOW, NORMAL, HIGH, and MAX all take turns together. Most of the priority control does nothing. <a href="#priority-bucket-note">The exact arithmetic is below.</a></p></div>
+<div class="intro-stage"><h3>A.1: Fix the math</h3><p>Now the buckets work. Two busy priority-50 threads can <strong>shut out</strong> a priority-30 thread <strong>forever</strong>: one runs while the other waits in the preferred bucket. Oddly, just <em>one</em> busy 50 can alternate with the 30, because the scheduler chooses a replacement before putting the current runner back in its queue. The arithmetic bug had been hiding starvation between priorities that shared the broken bucket.</p></div>
+<div class="intro-stage"><h3>A.2: Compare the current runner too</h3><p>Keep FIFO turns within each bucket, but include the running thread in the choice. That removes the odd forced alternation. Now a single busy 50 can beat the 30 at every choice and keep running. <strong>Starvation gets easier to trigger!</strong> The rule is consistent; it just lets higher-priority work shut out lower-priority desktop work.</p></div>
+<div class="intro-stage"><h3>A.3: Make room for everyone</h3><p>We could force an occasional turn for another bucket, remembering where we left off and rotating through <em>all</em> occupied buckets. That prevents starvation. But under heavy load, “eventually” can still be a long wait. We now have strict priority with a second scheduling rule bolted on, and an interval to tune. And, we've created a scheduler that is complicated, hard to reason about, and still doesn't lead to a responsive user experience. It has exceptions, and within the exceptions, a <b>virtual second scheduler</b>.</p></div>
+<p>And after all that, different priorities get binned into fewer buckets -- why distinguish at all?  50 and 51 share a bucket and get treated alike, for example, why give expression to the distinction to the programmer if it doesn't MEAN anything?</p>
+<p>“Just fix the bugs” naturally grows into a discussion about policy. And once we are deciding how to share the CPU, prevent starvation, and keep the desktop responsive, we’re designing a scheduler -- we should do that deliberately.</p>
+<div class="intro-proposal"><h3>Scheduler C</h3><p>Scheduler C gives every priority its own weight, with no buckets. It runs the thread with the lowest weighted virtual time. Priorities finally affect CPU share, lower-priority threads still get turns, and sleeping threads cannot bank unlimited credit.</p><p>That is the proposal: a small set of rules we can explain, inspect, and measure. It still needs real workload evaluation. The demos below show how its policy compares with the <em>unmodified</em> Original Scheduler.</p></div>
+<p><strong>Timer decision: 1,000 Hz.</strong> We propose raising the timer frequency from 250 to 1,000 Hz: a scheduling tick every 1 ms. This gives Scheduler C finer CPU accounting and more frequent chances to run newly awakened threads, at the cost of more timer and scheduler work. Both demo panels use this frequency for comparison; the Original Scheduler’s two-tick turn is now 2 ms, and Scheduler C’s one-tick turn is 1 ms.</p>
+</section>
+<nav class="scenarios" aria-label="Experiments" id="scenarios"></nav>
+<section class="experiment"><div><span class="eyebrow" id="scenario-tag"></span><p id="scenario-text"></p></div><button id="restart" class="quiet" title="Restart experiment (R)">↺ Restart</button></section>
+<div class="simulation-zone"><div class="console"><section class="transport" aria-label="Simulation controls"><div class="playback"><button id="play" class="primary" title="Play or pause (Space)">▶ Run</button><button id="step" title="Advance one 1 ms interval (Right arrow)">Step <span>+1 ms</span></button><label class="speed-label">Playback <select id="speed"><option value="1">Slow · 1 tick/s</option><option value="4" selected>Normal · 4 ticks/s</option><option value="20">Fast · 20 ticks/s</option><option value="100">Overview · 100 ticks/s</option></select></label></div><div class="sim-clock"><span>SIMULATED TIME</span><strong id="clock">0 <small>ms</small></strong></div></section>
+<section class="input-deck"><div class="input-actions"><button id="click" class="input-button" title="Send a click (I)">↗ Send a click</button><label class="check-label"><input type="checkbox" id="auto-input"> Repeat every 80 ms</label><button id="hold" class="lock-button" title="Inject a 24 ms interrupt-disabled section on each CPU">▧ Hold interrupts · 24 ms</button></div><p id="input-status" role="status" aria-live="polite">Each click goes to both schedulers.</p></section>
+</div><main class="comparison" id="comparison"></main>
+<section class="workbench"><div class="section-heading"><div><div class="eyebrow">CHANGE THE EXPERIMENT</div><h2>Runnable threads</h2></div><div class="workbench-actions"><button id="load-mixed" class="quiet">Load mixed workload</button><button id="add-worker" class="quiet">+ Add worker</button></div></div><p class="section-note">Each row represents one thread. Changing a priority restarts both simulations. Sleeping or waking a worker changes the live workload. The mixed workload covers LOW 10, NORMAL 30, HIGH 50, and MAX 99.</p><div id="task-list" class="task-list"></div></section>
+</div><section class="takeaway" id="takeaway"><span class="takeaway-icon">↳</span><div><h2 id="takeaway-title"></h2><p id="takeaway-text"></p></div></section>
+<section class="method" aria-label="About the model">
+<p><strong>About the model.</strong> One CPU, 1,000 Hz, and no simulated switching overhead. Desktop and audio jobs take one 1 ms tick. These are teaching examples, not measured GUI response times.</p>
+<p><strong>Source versions.</strong> Original Scheduler: <code>5a4c0d7b</code>, two ticks per turn. Scheduler C: <code>e1259863</code>, one tick per turn, choosing the smallest weighted virtual time.</p>
+<p><strong>Limits.</strong> MAX earns a larger CPU share, not a deadline guarantee. Interrupt-disabled work can delay either scheduler; the 24 ms hold is an illustration.</p>
+<p class="shortcut-note">Keyboard: <kbd>Space</kbd> run/pause · <kbd>→</kbd> step · <kbd>I</kbd> input · <kbd>R</kbd> restart.</p>
+</section>
+<section class="source-footnote" id="priority-bucket-note" role="doc-footnote" tabindex="-1" aria-labelledby="priority-bucket-heading">
+<div class="footnote-heading"><span class="footnote-number">[1]</span><div><div class="eyebrow">ORIGINAL SCHEDULER · CODE EXPLANATION</div><h2 id="priority-bucket-heading">Why do priorities 2–99 all share bucket 0?</h2></div></div>
+<p><strong>The division discards the fractional part before the multiplication happens.</strong> The Original Scheduler accepts 99 priority values, but its conversion to a queue index produces only two results: priority 1 goes to bucket 31, and every priority from 2 through 99 goes to bucket 0. This follows directly from the integer expression in the original code.</p>
+<p class="source-revision">All source locations below refer to the Original Scheduler at commit <code>5a4c0d7bd3f5bce844ec45795d90625659a8edf8</code>. They are original repository paths and line numbers, not lines in this JavaScript demo or a later scheduler revision.</p>
+<h3>The constants and the exact expression</h3>
+<ul class="source-locations">
+<li><code>Kernel/API/POSIX/sched.h:19</code> defines <code>THREAD_PRIORITY_MIN</code> as <code>1</code>; <code>:23</code> defines <code>THREAD_PRIORITY_MAX</code> as <code>99</code>. The same definitions also appear in <code>Kernel/API/POSIX/serenity.h:40</code> and <code>:44</code>.</li>
+<li><code>Kernel/Tasks/Scheduler.cpp:44–48</code> defines <code>ThreadReadyQueues</code>. Its <code>u32 mask</code> is 32 bits, and <code>count = sizeof(mask) * 8</code> gives <strong>32 queues</strong>, indexed 0–31.</li>
+<li><code>Kernel/Tasks/Scheduler.cpp:56–66</code> contains <code>thread_priority_to_priority_index(u32 thread_priority)</code>. Line 60 checks the valid range. <strong>Line 63 is the faulty conversion.</strong> The following is the exact source excerpt from lines 61–65:</li>
+</ul>
+<pre class="source-code"><code>constexpr u32 thread_priority_count = THREAD_PRIORITY_MAX - THREAD_PRIORITY_MIN + 1;
+static_assert(thread_priority_count &gt; 0);
+auto priority_bucket = ((thread_priority_count - (thread_priority - THREAD_PRIORITY_MIN)) / thread_priority_count) * (ThreadReadyQueues::count - 1);
+VERIFY(priority_bucket &lt; ThreadReadyQueues::count);
+return priority_bucket;</code></pre>
+<h3>Substitute the numbers, then do the integer arithmetic</h3>
+<p>Let <code>p</code> be the requested priority. The priority count is <code>99 − 1 + 1 = 99</code>, and the last bucket index is <code>32 − 1 = 31</code>. Therefore:</p>
+<pre class="source-code math-code"><code>bucket(p) = ((99 − (p − 1)) / 99) × 31
+          = ((100 − p) / 99) × 31       ← division is integer division
+          = floor((100 − p) / 99) × 31 ← equivalent for these positive values</code></pre>
+<p>The numerator and divisor are integers. C++ integer division truncates toward zero, which is the same as rounding down for these positive values. For <code>p = 1</code>, the division is <code>99 / 99 = 1</code>, giving <code>1 × 31 = 31</code>. For <strong>every</strong> <code>p</code> from <code>2</code> through <code>99</code>, the numerator is between <code>98</code> and <code>1</code>: smaller than the divisor <code>99</code>. The quotient is consequently <code>0</code>, and multiplying that zero by <code>31</code> still gives <code>0</code>.</p>
+<div class="footnote-table-wrap"><table class="footnote-table"><thead><tr><th>Requested priority</th><th>Numerator: 100 − p</th><th>Integer division by 99</th><th>Bucket: quotient × 31</th></tr></thead><tbody>
+<tr><td>1 · minimum</td><td>99</td><td>1</td><td><strong>31</strong></td></tr>
+<tr><td>2</td><td>98</td><td>0</td><td><strong>0</strong></td></tr>
+<tr><td>10 · low</td><td>90</td><td>0</td><td><strong>0</strong></td></tr>
+<tr><td>30 · normal</td><td>70</td><td>0</td><td><strong>0</strong></td></tr>
+<tr><td>50 · high</td><td>50</td><td>0</td><td><strong>0</strong></td></tr>
+<tr><td>99 · maximum</td><td>1</td><td>0</td><td><strong>0</strong></td></tr>
+</tbody></table></div>
+<p><strong>Multiplying afterward cannot recover the discarded fraction.</strong> For example, at priority 30 the actual expression gives <code>(70 / 99) × 31 = 0</code>; multiplying first would give <code>(70 × 31) / 99 = 21</code>. Those expressions are not equivalent under integer arithmetic. A full-range linear mapping could instead use <code>((99 − p) × 31) / 98</code>, with multiplication before division and the endpoint span <code>99 − 1 = 98</code>. That is an illustrative alternative; this demo faithfully runs the Original Scheduler’s expression.</p>
+<h3>How that becomes the scheduling behavior you see</h3>
+<p><code>Kernel/Tasks/Scheduler.cpp:168</code> calls the conversion when a thread is enqueued; lines <code>174–178</code> append it to that bucket and set its occupancy bit. In <code>pull_next_runnable_thread()</code>, lines <code>73–78</code> scan occupied buckets starting with the lowest numbered one, then walk its thread list. Thus priority 99 and priority 2 enter the same FIFO queue; neither gets a higher bucket than the other. Buckets 1–30 remain unused by valid priorities.</p>
+<p>Priority 1 is the exception: its bucket 31 is considered only after the earlier buckets yield no eligible queued thread. With two continuously runnable, eligible workers in bucket 0 on this single CPU, one stays queued while the other runs, so priority-1 work can starve. These consequences come from the Original Scheduler’s queue mapping and selection order; they are separate from Scheduler C’s weighted virtual-time policy.</p>
+<p class="footnote-return"><a href="#panel-A">↑ Return to the Original Scheduler</a></p>
+</section>
+<section class="source-footnote policy-note" id="not-just-a-bugfix" aria-labelledby="bugfix-heading">
+<div class="footnote-heading"><span class="policy-sign" aria-hidden="true">Original → Scheduler C</span><div><div class="eyebrow">FIXING DEFECTS AND CHOOSING POLICY</div><h2 id="bugfix-heading">Not Just a Bugfix!</h2></div></div>
+<p class="policy-question">Why is Scheduler C a proposal rather than a bug fix?</p>
+<p>The distinction is between <strong>fixing defects</strong> and <strong>choosing what priority should mean</strong>.</p>
+<p>Scheduler C fixes real problems, but it also changes scheduling policy. Repairing the original bucket calculation would make different priorities enter different queues. The original selection rule would still prefer the highest-priority eligible queue.</p>
+<p>Scheduler C instead allocates CPU service according to weights. A lower-priority thread can run while higher-priority threads remain runnable, because it is owed service under that policy.</p>
+<h3>A concrete counterexample</h3>
+<p>Assume <strong>one CPU, two permanently busy priority-99 workers, and one permanently busy priority-30 thread</strong>, all eligible to run. Repair the Original Scheduler’s bucket arithmetic so that MAX and normal priorities enter distinct buckets, while retaining its bucket-selection policy:</p>
+<div class="footnote-table-wrap"><table class="footnote-table"><thead><tr><th>Scheduler</th><th>What happens to the priority-30 thread?</th></tr></thead><tbody>
+<tr><td><strong>Original Scheduler with repaired bucket arithmetic</strong>, retaining its bucket-selection policy</td><td>It can receive <strong>no CPU time</strong>: a priority-99 worker always remains available in the preferred bucket.</td></tr>
+<tr><td><strong>Scheduler C</strong></td><td>It receives approximately <strong>6.6% of CPU service</strong> over time.</td></tr>
+</tbody></table></div>
+<p>Scheduler C’s approximate share follows from its weights:</p>
+<pre class="source-code math-code"><code>normal weight = 2,326
+MAX weight    = 16,384
+
+normal share ≈ 2,326 / (2,326 + 16,384 + 16,384)
+             ≈ 6.6%</code></pre>
+<p>Scheduler C’s integer virtual-time charges introduce a small rounding difference. This is a <strong>steady-state service-share calculation</strong>, not a latency guarantee or a QEMU measurement.</p>
+<p>Using <strong>two</strong> MAX workers makes the example hold even with the Original Scheduler’s exclusion of the current thread: the other MAX worker remains queued. Allowing the current thread to compete would not eliminate this distinction. This example demonstrates a policy difference without depending on that particular choice about the current thread.</p>
+<h3>The difference is explicit in the source</h3>
+<ul class="source-locations">
+<li><strong>Original Scheduler: choose from the lowest numbered occupied eligible bucket.</strong> See <code>Kernel/Tasks/Scheduler.cpp:68–108</code>, particularly the bucket scan at lines <code>73–78</code>, at commit <code>5a4c0d7bd3f5bce844ec45795d90625659a8edf8</code>. The arithmetic defect is at line <code>63</code>, explained in <a href="#priority-bucket-note">footnote [1]</a>.</li>
+<li><strong>Scheduler C: choose the smallest virtual time, with priority determining how quickly that time advances.</strong> See <code>Kernel/Tasks/Scheduler.cpp:29–56</code> for weights and charging, and <code>:82–108</code> for selection, at commit <code>e125986328558985179e24b5950f6121fc81ffc0</code>. The enqueue rules at <code>:169–189</code> retain existing virtual-time debt and raise a waking thread to the runnable floor.</li>
+</ul>
+<p>These are original repository paths and line numbers at the stated revisions. The project archive includes the corresponding <code>sources/A-Scheduler.cpp</code> and <code>sources/C-Scheduler.cpp</code> snapshots. Merely correcting the bucket calculation does not introduce Scheduler C’s weights, accumulated service accounting, or wakeup-floor policy.</p>
+<h3>What this says about the Original Scheduler</h3>
+<p>The Original Scheduler is compact and its queueing rules are easy to follow. It has served SerenityOS through years of development. The arithmetic bug is real; fixing it exposes a starvation problem in the bucket policy that had been hard to see while most priorities shared one queue.</p>
+<p>A.1 through A.3 show why each repair leads to another decision about CPU sharing and desktop latency. Scheduler C is a proposed answer to those policy questions. The intermediate repairs are thought experiments in this demo; the runnable comparison is between the unmodified Original Scheduler and Scheduler C. Real desktop measurements are still needed to judge the proposal.</p>
+<p class="policy-conclusion"><strong>Scheduler C is a proposed change to priority and fairness policy, motivated by bugs in the original scheduler.</strong></p>
+</section>
+<section class="source-footnote policy-note" id="is-this-eevdf" aria-labelledby="eevdf-heading">
+<div class="footnote-heading"><span class="policy-sign" aria-hidden="true">Scheduler C</span><div><div class="eyebrow">SHARED FOUNDATIONS · SIMPLER RULES</div><h2 id="eevdf-heading">Is this really just Linux's EEVDF?</h2></div></div>
+<p class="policy-question"><strong>No.</strong> EEVDF first checks which tasks are owed CPU time (their <em>lag</em>), then runs the eligible task with the earliest virtual deadline. Scheduler C simply runs the thread with the lowest virtual time. No lag test. No deadlines. <a href="https://kernel.org/doc/html/latest/scheduler/sched-eevdf.html" target="_blank" rel="noopener noreferrer">Linux’s EEVDF design</a>.</p>
+<p>EEVDF can also use a task’s requested run length to favor short jobs. Scheduler C gives each selected thread a one-tick turn. Both aim for fair CPU service; they make different choices about who runs next.</p>
+<div class="policy-subquestion">
+<h3>So, it's really just CFS?</h3>
+<p><strong>No.</strong> Scheduler C takes CFS’s core rule: charge CPU service by weight, then run the thread with the lowest virtual time. <a href="https://kernel.org/doc/html/latest/scheduler/sched-design-CFS.html" target="_blank" rel="noopener noreferrer">Linux’s CFS design</a>.</p>
+<p>It leaves out CFS’s actual elapsed-time accounting, ordered tree, variable run lengths, and wakeup preemption. The proposed 1,000 Hz timer gives Scheduler C a scheduling chance every 1 ms and makes tick accounting less coarse. It still is not CFS.</p>
+<p>My bet: that core rule plus 1,000 Hz gets SerenityOS roughly 90% of the desktop benefit we want from CFS, with a fraction of the complexity. That 90% is an estimate, not a measurement. We need real input and audio tests to see whether the missing pieces matter.</p>
+</div>
+</section>
+<section class="poingo-conclusion" aria-labelledby="poingo-conclusion-heading">
+<h2 id="poingo-conclusion-heading">So what about Poingo?</h2>
+<p>On Scheduler C, Poingo runs much more smoothly and can run with more balls. There are still brief stalls that I traced to spinlocks. That's a fix for another day.</p>
+<p>But this is a move in the right direction. Multiple desktop threads can run without starving WindowServer as much or glitching audio, and the desktop feels smoother overall. I'll upload new videos of Poingo to Discord soon.</p>
+</section>
+<footer><span>SerenityOS Scheduler Analysis <span class="footer-dot">·</span> Original Scheduler / Scheduler C source-based teaching model</span><span>Runs locally. No network. No dependencies.</span></footer>
+</div>
+<script>/* Single-CPU teaching model of pinned SerenityOS scheduler sources.
+ * Original Scheduler (internal key A): 5a4c0d7bd3f5bce844ec45795d90625659a8edf8
+ * C: e125986328558985179e24b5950f6121fc81ffc0
+ * See README.md for tick-boundary and synthetic spinlock assumptions.
+ */
+(function (root) {
+  'use strict';
+  const TICK = 1; // Proposal: 1,000 Hz timer; both panels use the same clock.
+  const WEIGHTS = [
+    1024,1053,1084,1115,1147,1180,1213,1248,1284,1321,1359,1398,1438,1479,1522,1565,1610,1656,1704,1753,1803,1855,1908,1963,2019,2077,2137,2198,2261,2326,2393,2461,2532,2605,2680,2756,2836,2917,3001,3087,3175,3266,3360,3457,3556,3658,3763,3871,3982,4096,4214,4334,4459,4587,4718,4854,4993,5136,5284,5435,5591,5752,5917,6087,6261,6441,6626,6816,7012,7213,7420,7633,7852,8077,8309,8547,8792,9045,9304,9571,9846,10128,10419,10718,11026,11342,11667,12002,12347,12701,13065,13440,13826,14223,14631,15051,15483,15927,16384
+  ];
+  const bucket = p => Math.trunc((100 - p) / 99) * 31;
+  const weight = p => WEIGHTS[p - 1];
+  const charge = p => Math.trunc(2 ** 24 / weight(p));
+  const colors = ['#08737a','#a65313','#7653a8','#b13c73','#4a701d','#3e66ad','#866418','#ab4133','#2e6e84'];
+  function task(id, name, priority, role = 'worker', always = true) {
+    return {id, name, priority, role, always, color: colors[id]};
+  }
+  const scenarios = [
+    {id:'priorities', title:'The broken priority dial', tag:'Original Scheduler ignores priorities 2–99',
+      text:'The urgent worker asks for priority 99. The background worker asks for 10. Watch their CPU shares: the Original Scheduler treats them alike. Scheduler C makes the dial matter.',
+      a:'Integer division puts priorities 2 through 99 in bucket 0. They take the same 2 ms turns.',
+      c:'The lowest service clock runs. Higher priority advances that clock more slowly, earning more turns.',
+      tasks:[task(0,'Desktop',50,'gui',false),task(1,'Urgent work',99),task(2,'Build',30),task(3,'Background',10)], auto:false},
+    {id:'trap', title:'The priority-1 trap', tag:'Original Scheduler can starve a task completely',
+      text:'This artificial starvation case puts Cleanup and the desktop at priority 1. Two busy workers keep the Original Scheduler’s bucket 0 occupied. Send a click: the Original Scheduler can leave it waiting forever. Scheduler C still gives them turns.',
+      a:'Two workers are essential here: while one runs, the other remains in bucket 0. Bucket 31 never wins.',
+      c:'Even priority 1 has a positive share. Its clock jumps farther per turn, but it eventually becomes the lowest again.',
+      tasks:[task(0,'Desktop',1,'gui',false),task(1,'Worker A',30),task(2,'Worker B',30),task(3,'Cleanup',1)], auto:false},
+    {id:'input', title:'A click in a busy desktop', tag:'Watch the input response',
+      text:'The desktop task represents WindowServer at its configured priority 50. It sleeps until input arrives, then needs one 1 ms turn to respond. Send a click and compare the waiting and completed times below each scheduler.',
+      a:'The Original Scheduler wakes the desktop into the same FIFO bucket as the workers. Priority 50 cannot move it to the front.',
+      c:'A waking task joins near the lowest runnable clock. At equal clocks, higher priority wins the tie.',
+      tasks:[task(0,'Desktop',50,'gui',false),task(1,'Compile A',30),task(2,'Compile B',30),task(3,'Compile C',30),task(4,'Compile D',30)], auto:true},
+    {id:'overload', title:'Too many MAX workers', tag:'Scheduler C has a tradeoff, too',
+      text:'This artificial overload case makes the desktop continuously busy at priority 30 against three priority-99 workers. Scheduler C honors their weights, leaving the desktop about 4.5% of CPU. Fair shares alone do not guarantee prompt interaction.',
+      a:'The priority bug accidentally gives the desktop an equal share here. Each of the four threads gets about 25%.',
+      c:'MAX means about seven times normal’s weight per thread. Three MAX workers together dominate the CPU budget.',
+      tasks:[task(0,'Desktop',30,'gui',true),task(1,'MAX worker A',99),task(2,'MAX worker B',99),task(3,'MAX worker C',99)], auto:true},
+    {id:'lock', title:'A spinlock stops the clock', tag:'A limitation shared by both schedulers',
+      text:'Press “Hold interrupts”, then send a click. The current thread keeps the CPU for 21 ms of injected kernel work. Input delivery and timer scheduling wait until it releases the lock.',
+      a:'Neither priority nor the normal 2 ms turn can interrupt an IRQ-disabled critical section.',
+      c:'Virtual-time selection can act only when scheduling is allowed. Scheduler C also has to wait for the lock to end.',
+      tasks:[task(0,'Desktop',50,'gui',false),task(1,'Worker A',30),task(2,'Worker B',30)], auto:false},
+    {id:'mixed', title:'Time to Wait', tag:'MIXED DESKTOP WORKLOAD · BRIEF HIGH-PRIORITY TASKS',
+      text:'Four NORMAL workers and one LOW background worker stay busy. The HIGH desktop task wakes for periodic input, and a MAX audio enqueuer wakes for brief work. Compare the live wait at LOW, NORMAL, HIGH, and MAX.',
+      a:'The Original Scheduler puts LOW (10), NORMAL (30), HIGH (50), and MAX (99) in the same FIFO bucket. Short high-priority jobs wait behind ordinary work.',
+      c:'HIGH desktop and MAX audio jobs gain service sooner through smaller virtual-time charges and priority tie-breaks. They sleep again after one tick.',
+      tasks:[task(0,'Desktop',50,'gui',false),task(1,'Build',30),task(2,'Browser',30),task(3,'Indexer',30),task(4,'Compiler',30),
+        {...task(5,'Audio enqueuer',99,'pulse',false),period:48,firstWake:8},task(6,'Background scan',10)], auto:true}
+  ];
+
+  class Model {
+    constructor(kind, definitions) {
+      if (!['A','C'].includes(kind)) throw Error('Unknown scheduler');
+      this.kind = kind;
+      this.tasks = definitions.map(d => ({...d, vt:0, cpu:0, wait:0, maxWait:0, waitTotal:0, waitSamples:0, nextWake:d.firstWake, state:'sleeping', jobs:[], turns:0}));
+      this.ready=[]; this.current=null; this.runningVT=Infinity; this.minVT=0;
+      this.time=0; this.quantum=0; this.history=[]; this.responses=[]; this.switches=0;
+      this.worstLatency=null;
+      this.lockUntil=0; this.deferred=[];
+      this.reason='Ready to begin.'; this.lastChoice=0; this.lastClamp=null;
+      for (const t of this.tasks) if (t.always) this.enqueue(t);
+      this.pick(false);
+    }
+    enqueue(t) {
+      if (this.ready.includes(t)) throw Error('Duplicate ready entry');
+      if (this.kind==='C') {
+        const lowest=Math.min(this.runningVT, ...this.ready.map(q=>q.vt));
+        if (Number.isFinite(lowest)) this.minVT=Math.max(this.minVT,lowest);
+        const before=t.vt;
+        t.vt=Math.max(t.vt,this.minVT);
+        if (t.vt>before) this.lastClamp={name:t.name,from:before,to:t.vt,at:this.time};
+      }
+      t.state='ready'; t.wait=0; this.ready.push(t);
+    }
+    pick(allowCurrent=true) {
+      const prev=this.current;
+      let selected=null;
+      if (this.kind==='A') {
+        for (const t of this.ready) if (!selected || bucket(t.priority)<bucket(selected.priority)) selected=t;
+      } else {
+        const candidates=[...this.ready];
+        if (allowCurrent && prev && prev.state==='running') candidates.push(prev);
+        for (const t of candidates) if (!selected || t.vt<selected.vt || (t.vt===selected.vt && t.priority>selected.priority)) selected=t;
+        this.runningVT=selected ? selected.vt : Infinity;
+      }
+      if (selected!==prev) {
+        if (selected) this.ready.splice(this.ready.indexOf(selected),1);
+        if (prev && prev.state==='running') this.enqueue(prev);
+        if (prev || selected) this.switches++;
+      }
+      this.current=selected;
+      this.quantum=this.kind==='A' ? 2 : 1;
+      if (selected) {
+        selected.waitTotal+=selected===prev?0:selected.wait;
+        selected.waitSamples++;
+        selected.state='running'; selected.wait=0; selected.turns++;
+        this.reason=this.kind==='A'
+          ? `${selected.name} taken from bucket ${bucket(selected.priority)}. The old runner rejoins after selection.`
+          : `${selected.name} has the lowest eligible clock (${selected.vt.toLocaleString('en-US')}). Ties prefer higher priority, then queue order.`;
+      } else this.reason='No runnable task. The CPU is idle.';
+      this.lastChoice=this.time;
+    }
+    get gui() { return this.tasks.find(t=>t.role==='gui'); }
+    get locked() { return this.time<this.lockUntil; }
+    input(event) {
+      if (!this.gui) return;
+      const request={...event, at:event.at ?? this.time};
+      if (this.locked) this.deferred.push(request);
+      else this.deliver(request);
+    }
+    deliver(request) {
+      this.gui.jobs.push(request);
+      if (this.gui.state==='sleeping') this.enqueue(this.gui);
+      if (!this.current) this.pick(false); // waking an idle single CPU
+    }
+    hold(ms=24) {
+      if (!this.current || this.locked) return false;
+      this.lockUntil=this.time+ms;
+      this.reason=`${this.current.name} holds interrupts off. Timer preemption and input delivery are deferred.`;
+      return true;
+    }
+    toggleSleep(id) {
+      const t=this.tasks.find(t=>t.id===id);
+      if (!t || t.role==='gui' || t.role==='pulse' || this.locked) return;
+      if (t.state==='sleeping') {
+        this.enqueue(t);
+        if (!this.current) this.pick(false);
+      } else {
+        if (this.ready.includes(t)) this.ready.splice(this.ready.indexOf(t),1);
+        t.state='sleeping'; t.wait=0;
+        if (t===this.current) { this.current=null; this.pick(false); }
+      }
+    }
+    advance(arrivals=[]) {
+      const runner=this.current, start=this.time, wasLocked=this.locked;
+      const servicedJob=runner?.role==='gui' && !wasLocked ? runner.jobs[0] : null;
+      for (const t of this.ready) { t.wait+=TICK; t.maxWait=Math.max(t.maxWait,t.wait); }
+      if (runner) runner.cpu+=TICK;
+      this.time+=TICK;
+      this.history.push({at:start,id:runner?.id ?? null,locked:wasLocked});
+      if (this.history.length>96) this.history.shift();
+      // Events at the end of the interval are delivered before timer selection,
+      // like TimerQueue::fire() preceding Scheduler::timer_tick().
+      for (const request of arrivals) {
+        if (wasLocked) this.deferred.push({...request,at:this.time});
+        else this.input({...request,at:this.time});
+      }
+      if (!wasLocked) for (const t of this.tasks) {
+        if (t.role==='pulse' && this.time>=t.nextWake) {
+          if (t.state==='sleeping') this.enqueue(t);
+          t.nextWake+=t.period;
+        }
+      }
+      if (wasLocked && this.locked) return this;
+      if (wasLocked) {
+        for (const request of this.deferred.splice(0)) this.deliver(request);
+        for (const t of this.tasks) if (t.role==='pulse' && this.time>=t.nextWake) {
+          if (t.state==='sleeping') this.enqueue(t);
+          while (t.nextWake<=this.time) t.nextWake+=t.period;
+        }
+        // Stylized IRQ coalescing: deliver one pending timer tick at unlock.
+      }
+      if (runner && this.kind==='C') {
+        runner.vt+=charge(runner.priority);
+        this.runningVT=runner.vt;
+      }
+      if (servicedJob && runner.jobs[0]===servicedJob) {
+        const job=runner.jobs.shift();
+        this.responses.push({id:job.id,latency:this.time-job.at,at:this.time});
+        this.worstLatency=Math.max(this.worstLatency??0,this.time-job.at);
+        if (this.responses.length>2048) this.responses.shift();
+      }
+      if (runner && ((runner.role==='gui' && !runner.always && !runner.jobs.length) || (runner.role==='pulse' && !wasLocked))) {
+        runner.state='sleeping'; runner.wait=0; this.current=null; this.pick(false);
+      } else if (this.current && runner) {
+        this.quantum--;
+        if (this.quantum<=0) {
+          if (this.ready.length) this.pick(true);
+          else {
+            this.quantum=this.kind==='A'?2:1; this.current.turns++;
+            this.current.waitSamples++;
+            this.reason=`${this.current.name} is alone, so it keeps running.`;
+          }
+        } else this.reason=`${this.current.name} continues the second 1 ms half of its 2 ms turn.`;
+      } else if (this.ready.length) this.pick(false);
+      return this;
+    }
+    pendingAge() {
+      const jobs=[...(this.gui?.jobs||[]),...this.deferred];
+      return jobs.length ? this.time-Math.min(...jobs.map(j=>j.at)) : null;
+    }
+    check() {
+      const readyIds=this.ready.map(t=>t.id);
+      if (new Set(readyIds).size!==readyIds.length) throw Error('Duplicate ready task');
+      for (const t of this.tasks) {
+        if ((t.state==='ready')!==this.ready.includes(t)) throw Error('Ready state mismatch');
+        if ((t.state==='running')!==(t===this.current)) throw Error('Running state mismatch');
+        if (t.vt<0 || !Number.isInteger(t.vt)) throw Error('Invalid virtual time');
+      }
+      return true;
+    }
+  }
+  const api={TICK,WEIGHTS,bucket,weight,charge,colors,task,scenarios,Model};
+  if (typeof module!=='undefined' && module.exports) module.exports=api;
+  else root.SchedulerLab=api;
+})(typeof globalThis!=='undefined'?globalThis:this);
+</script>
+<script>/* UI for the standalone scheduler teaching model. No network or libraries. */
+(() => {
+  'use strict';
+  const {Model,scenarios,task,bucket,weight,charge,TICK}=SchedulerLab;
+  const $=id=>document.getElementById(id);
+  const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const priorityNote='<a class="footnote-ref" href="#priority-bucket-note" role="doc-noteref" aria-label="Footnote 1: why priorities 2–99 share a bucket">[1] WHY?</a>';
+  const annotatePriority=s=>esc(s).replace(/priorities 2(?:–| through )99/i,match=>`${match} ${priorityNote}`);
+  let scenario=scenarios[0], definitions=scenario.tasks.map(t=>({...t}));
+  let models=[], playing=false, modified=false, requestId=0, accumulator=0, lastFrame=0, nextAuto=24;
+  const takeaways={
+    trap:['Starvation is different from a small share.', 'With two busy workers in bucket 0, the Original Scheduler can give priority-1 work no CPU time at all. Put one of those workers to sleep: it selects before requeueing its previous runner, so the low bucket can now get a turn. Scheduler C gives every continuously runnable thread progress in this fixed workload.'],
+    input:['Watch the delay, not just the average share.', 'Each panel reports whether the latest click is still waiting or has completed, with its elapsed time. A click must first reach the desktop task and then get CPU service. Here Scheduler C’s short turns and service-clock placement help a sleeping high-priority desktop compete with busy workers.'],
+    overload:['A meaningful priority is also a resource claim.', 'Scheduler C gives each MAX thread roughly seven times a normal thread’s share. Three MAX workers leave this continuously runnable desktop about 4.5%. That policy is working as configured, but it is not a latency guarantee. At 1,000 Hz, each modeled click needs 1 ms of CPU every 80 ms: 1.25%, below that allocation. Clicks can still wait between the desktop’s turns. Restricting MAX use or reserving interactive capacity is a system policy decision. Compare this with the sleeping desktop in experiment 03.'],
+    lock:['No scheduler can select its way out of an IRQ-off interval.', 'The striped timeline is injected kernel work with interrupts disabled. Input waits and the current thread keeps the CPU on both sides. Shorter critical sections address this delay; changing the selection algorithm alone cannot. The 24 ms hold is an illustration, not a measured SerenityOS lock duration.'],
+    mixed:['Compare SerenityOS’s LOW, NORMAL, HIGH, and MAX priorities.', 'LOW (10) background work and four NORMAL (30) workers remain busy. The HIGH (50) desktop task models WindowServer handling brief input, while a MAX (99) audio enqueuer wakes periodically. Time to Wait measures runnable delay before a turn. These are simulated policy outcomes, not measured audio or GUI deadlines.']
+  };
+  $('scenarios').innerHTML=scenarios.filter(s=>s.id!=='mixed').map((s,i)=>`<button class="scenario" data-scenario="${s.id}" aria-pressed="false"><span class="number">0${i+1}</span><span>${esc(s.title)}</span></button>`).join('');
+  function cpuSvg() {
+    return `<rect class="cpu-box" x="449" y="85" width="137" height="132" rx="12"/><text class="svg-label" x="517" y="107" text-anchor="middle">ONE CPU</text><text class="cpu-caption" data-cpu-state x="517" y="128" text-anchor="middle"></text><text class="cpu-name" data-cpu-name x="517" y="164" text-anchor="middle"></text><rect x="464" y="188" width="107" height="4" rx="2" fill="#dce6ec"/><rect class="cpu-progress" x="464" y="188" width="0" height="4" rx="2"/><text class="cpu-caption" data-cpu-turn x="517" y="207" text-anchor="middle"></text><path d="M420 152 H440 m-5 -4 5 4 -5 4" fill="none" stroke="#8099ab" stroke-width="1.4"/><g data-lock style="display:none"><rect class="lock-curtain" x="441" y="70" width="151" height="160" rx="12"/><text x="517" y="117" text-anchor="middle" fill="#81364f" font-size="20">▧</text><text x="517" y="145" text-anchor="middle" fill="#81364f" font-size="12" font-weight="700">INTERRUPTS OFF</text><text data-lock-time x="517" y="168" text-anchor="middle" fill="#81364f" font-size="18"></text><text x="517" y="194" text-anchor="middle" fill="#925168" font-size="10">input + timer wait</text></g>`;
+  }
+  function machineSvg(m) {
+    let drawing='';
+    if(m.kind==='A') {
+      drawing=`<text class="svg-label" x="16" y="21">HIGHEST NONEMPTY BUCKET WINS</text><rect x="13" y="32" width="407" height="111" rx="8" fill="#f4f7f1" stroke="#bfcdbd"/><text class="svg-muted" x="25" y="50">BUCKET 0 · priorities 2–99</text><a class="svg-footnote-ref" href="#priority-bucket-note" aria-label="Footnote 1: why priorities 2–99 share a bucket" tabindex="0"><title>Footnote 1: exact code and integer arithmetic</title><rect x="190" y="34" width="79" height="23" rx="5"/><text x="229.5" y="50" text-anchor="middle">[1] WHY?</text></a><path d="M37 164 H399" stroke="#a5b8aa" stroke-dasharray="3 4"/><text x="217" y="178" text-anchor="middle" class="svg-muted">Buckets 1–30 receive no valid priority</text><rect x="13" y="194" width="407" height="103" rx="8" fill="#fcf6ef" stroke="#dccbb8"/><text class="svg-muted" x="25" y="213">BUCKET 31 · priority 1</text><text data-bucket-empty x="217" y="252" text-anchor="middle" class="svg-muted">No priority-1 tasks</text>`;
+      drawing+=m.tasks.map(t=>`<g class="task-token" data-token="${t.id}"><rect width="95" height="31" rx="6" fill="${t.color}" fill-opacity=".05" stroke="${t.color}" stroke-opacity=".75"/><circle cx="9" cy="15" r="3" fill="${t.color}"/><text x="17" y="14" fill="${t.color}" font-size="9">${esc(t.name)}</text><text x="17" y="25" fill="${t.color}" font-size="7" opacity=".8">priority ${t.priority}</text></g>`).join('');
+    } else {
+      drawing=`<text class="svg-label" x="16" y="21">LOWEST SERVICE CLOCK WINS</text><line x1="151" y1="36" x2="151" y2="270" stroke="#8ca5b7" stroke-dasharray="3 4"/><text class="svg-muted" x="151" y="289">↑ least served</text><text class="svg-muted" x="400" y="289" text-anchor="end">further ahead →</text>`;
+      drawing+=m.tasks.map((t,i)=>`<g data-clock-row="${t.id}"><text x="16" y="${53+i*26}" fill="${t.color}" font-size="10">${esc(t.name)}</text><text x="16" y="${64+i*26}" fill="#5e7283" font-size="7">p${t.priority} · +${charge(t.priority).toLocaleString("en-US")} / tick</text><line x1="151" y1="${50+i*26}" x2="398" y2="${50+i*26}" stroke="#d3e0e8"/><line class="clock-line" data-clock-line="${t.id}" x1="151" y1="${50+i*26}" x2="151" y2="${50+i*26}" stroke="${t.color}" stroke-opacity=".55" stroke-width="3"/><circle class="clock-dot" data-clock-dot="${t.id}" cx="151" cy="${50+i*26}" r="5" fill="${t.color}"/><text data-clock-number="${t.id}" x="402" y="${54+i*26}" fill="#4b6072" font-size="8" text-anchor="end"></text></g>`).join('');
+    }
+    return `<div class="machine-scroll"><svg class="machine" viewBox="0 0 600 305" role="img" aria-label="${m.kind==='A'?'Priority buckets and CPU':'Virtual service clocks and CPU'}">${drawing}${cpuSvg()}</svg></div>`;
+  }
+  function panel(m) {
+    const k=m.kind, title=k==='A'?'Original Scheduler':'Scheduler C';
+    return `<article class="scheduler ${k.toLowerCase()}" id="panel-${k}"><div class="panel-head">${k==='A'?'':`<span class="letter">${k}</span>`}<div><h2>${title}</h2><p>${k==='A'?'Priority buckets · FIFO':'Weighted virtual time · fair shares'}</p></div><span class="turn-badge">${k==='A'?'2 ticks / turn':'1 tick / turn'}</span></div><p class="panel-description" data-description></p>${machineSvg(m)}<div class="decision" data-decision></div><div class="timeline-area"><div class="mini-label"><span>CPU HISTORY</span><span>${TICK} ms / tile · time →</span></div><div class="timeline" data-timeline aria-label="CPU service timeline"></div></div><div class="response-area"><div class="mini-label"><span>DESKTOP INPUT RESPONSE</span><span>Latest click on this scheduler</span></div><div class="response-summary"><div class="response-copy"><span class="response-kicker" data-response-kicker>READY TO COMPARE</span><strong data-response-title>No click sent yet</strong><span class="response-detail" data-response-detail>Send a click to both schedulers and compare their response times.</span></div><button class="response-send" type="button">Send click to both</button></div><div class="response-caption"><span data-response-caption>No completed clicks yet</span><span data-pending>0 queued</span></div><div class="metrics"><div class="metric" data-age><strong>—</strong><span>OLDEST INPUT WAIT</span></div><div class="metric"><strong data-last>—</strong><span>LAST RESPONSE</span></div><div class="metric"><strong data-worst>—</strong><span>WORST RESPONSE</span></div></div></div><section class="wait-panel" aria-label="Time to Wait for ${title}"><div class="wait-heading"><h3>Time to Wait</h3><span data-wait-scale></span></div><p class="wait-explainer">Live average from becoming runnable to each CPU turn, grouped by priority. Sleeping and running time are excluded.</p><div class="wait-panel-rows" data-wait-rows></div><p class="wait-panel-note">Only completed waits enter the average; an unfinished wait appears below its row. Both panels use the same bar scale.</p></section><div class="shares"><div class="mini-label"><span>CPU SHARE SO FAR</span><span>Elapsed CPU time · includes IRQ hold</span></div>${m.tasks.map(t=>`<div class="share-row" style="--task-color:${t.color}" data-share="${t.id}"><span class="task-name"><i class="swatch"></i>${esc(t.name)}</span><div class="share-track"><div class="share-fill"></div></div><span class="share-number">—</span></div>`).join('')}</div></article>`;
+  }
+  function play(value) {
+    playing=value; accumulator=0;
+    $('play').textContent=value?'Ⅱ Pause':'▶ Run';
+    $('play').setAttribute('aria-pressed',String(value));
+  }
+  function reset() {
+    play(false); requestId=0; nextAuto=24;
+    models=['A','C'].map(k=>new Model(k,definitions));
+    $('comparison').innerHTML=models.map(panel).join('');
+    $('input-status').textContent='Each click goes to both schedulers.';
+    $('auto-input').checked=scenario.auto;
+    document.querySelectorAll('[data-scenario]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.scenario===scenario.id)));
+    $('load-mixed').setAttribute('aria-pressed',String(scenario.id==='mixed'));
+    $('scenario-tag').innerHTML=annotatePriority(modified?'CUSTOM WORKLOAD · '+scenario.title:scenario.tag);
+    $('scenario-text').textContent=modified?'You have changed the cast. Both schedulers now run your priorities under the same input stream. Use CPU shares and response waits to see what those choices do.':scenario.text;
+    const takeaway=$('takeaway');
+    takeaway.hidden=scenario.id==='priorities';
+    if (!takeaway.hidden) {
+      $('takeaway-title').textContent=takeaways[scenario.id][0];
+      $('takeaway-text').textContent=takeaways[scenario.id][1]+(modified?' The explanation describes the preset; your edited priorities may change its outcome.':'');
+    }
+    for(const m of models) {
+      const p=$('panel-'+m.kind);
+      const svg=p.querySelector('.machine');
+      svg.querySelectorAll('.task-token').forEach(node=>svg.append(node));
+      svg.append(svg.querySelector('[data-lock]'));
+      const description=modified?(m.kind==='A'?'Priorities 2–99 share bucket 0; priority 1 uses bucket 31. Selection happens before the old runner rejoins.':'Lowest virtual time wins. A tick charges 2²⁴ / weight; higher priority advances the clock more slowly.'):scenario[m.kind.toLowerCase()];
+      p.querySelector('[data-description]').innerHTML=m.kind==='A'?annotatePriority(description):esc(description);
+      p.querySelector('.response-send').addEventListener('click',sendInput);
+    }
+    renderTasks(); render();
+  }
+  function renderTasks() {
+    $('task-list').innerHTML=definitions.map(t=>`<div class="task-row" style="--task-color:${t.color}"><div class="task-title"><span class="task-name"><i class="swatch"></i>${esc(t.name)}</span><small>${t.role==='gui'?(t.always?'Always busy + input work':'Sleeps between inputs'):t.role==='pulse'?`Brief job · ${TICK} ms every ${t.period} ms`:'CPU-bound worker'}</small></div><label class="priority-control">Priority <input data-priority="${t.id}" type="number" min="1" max="99" step="1" value="${t.priority}" aria-label="${esc(t.name)} priority"></label><div class="task-weight">Original bucket <strong>${bucket(t.priority)}</strong><br>Scheduler C weight <strong>${weight(t.priority).toLocaleString('en-US')}</strong></div>${t.role==='gui'?'<span class="gui-badge">INPUT TASK</span>':t.role==='pulse'?'<span class="gui-badge">BRIEF JOB</span>':`<button data-sleep="${t.id}">Sleep</button>`}</div>`).join('');
+    $('add-worker').disabled=definitions.length>=9;
+  }
+  function inputEvent() {
+    requestId++;
+    return {id:requestId};
+  }
+  function sendInput() {
+    const repeatWasOn=$('auto-input').checked;
+    $('auto-input').checked=false;
+    const request=inputEvent();
+    models.forEach(m=>m.input(request));
+    $('input-status').textContent=`Click #${requestId} sent to both.${repeatWasOn?' Repeating input turned off.':''} ${playing?'Compare the response status below.':'Press Run or Step to deliver CPU service.'}`;
+    render();
+  }
+  function tick(count=1) {
+    for(let i=0;i<count;i++) {
+      const arrivals=[];
+      if($('auto-input').checked && models[0].time+TICK>=nextAuto) {
+        arrivals.push(inputEvent()); nextAuto=models[0].time+TICK+80;
+      }
+      models.forEach(m=>m.advance(arrivals));
+    }
+    render();
+  }
+  const fmt=x=>x===null?'—':`${x} ms`;
+  const priorityNames={10:'LOW',30:'NORMAL',50:'HIGH',99:'MAX'};
+  function renderWaitCharts() {
+    const priorities=[...new Set(definitions.map(t=>t.priority))].sort((a,b)=>b-a);
+    const rows=priorities.map(priority=>{
+      const names=definitions.filter(t=>t.priority===priority).map(t=>t.name).join(', ');
+      const values=models.map(m=>{
+        const tasks=m.tasks.filter(t=>t.priority===priority);
+        const count=tasks.reduce((sum,t)=>sum+t.waitSamples,0);
+        const pending=Math.max(0,...tasks.filter(t=>t.state==='ready').map(t=>t.wait));
+        return {count,pending,average:count?tasks.reduce((sum,t)=>sum+t.waitTotal,0)/count:null};
+      });
+      return {priority,names,values};
+    });
+    const largest=Math.max(4,...rows.flatMap(row=>row.values.map(value=>value.average??0)));
+    const scale=Math.ceil(largest/4)*4;
+    models.forEach((m,i)=>{
+      const panel=$('panel-'+m.kind);
+      panel.querySelector('[data-wait-scale]').textContent=`${m.time.toLocaleString('en-US')} ms elapsed · shared scale 0–${scale} ms`;
+      panel.querySelector('[data-wait-rows]').innerHTML=rows.map(row=>{
+        const value=row.values[i];
+        return `<div class="wait-row"><div class="wait-task"><strong>${priorityNames[row.priority]?`${priorityNames[row.priority]} · ${row.priority}`:`Priority ${row.priority}`}</strong><span>${esc(row.names)}</span></div><div class="wait-series"><div class="wait-track"><span class="wait-fill" style="width:${value.average===null?0:Math.max(1,value.average/scale*100)}%"></span></div><strong class="wait-value">${value.average===null?'No turn yet':`${value.average.toFixed(1)} ms`}</strong></div><span class="wait-pending${value.pending?'':' empty'}">${value.pending?`Longest current wait: ${value.pending} ms`:'No task waiting now'}</span></div>`;
+      }).join('');
+    });
+  }
+  function render() {
+    $('clock').innerHTML=`${models[0].time.toLocaleString('en-US')} <small>ms</small>`;
+    document.body.classList.toggle('fast',Number($('speed').value)>4);
+    $('hold').disabled=models.some(m=>m.locked||!m.current);
+    for(const m of models) {
+      const p=$('panel-'+m.kind), q=s=>p.querySelector(s);
+      q('[data-decision]').textContent=m.locked?`${m.current.name} holds interrupts off for ${m.lockUntil-m.time} ms more. Input stays pending; no new task can take the CPU.`:m.reason;
+      q('.cpu-box').classList.toggle('active',!!m.current);
+      q('[data-cpu-state]').textContent=m.current?'RUNNING':'IDLE';
+      q('[data-cpu-name]').textContent=m.kind==='C'?(m.current?.name||'No ready work'):(m.current?'':'No ready work');
+      q('[data-cpu-name]').setAttribute('fill',m.current?.color||'#53697b');
+      q('[data-cpu-turn]').textContent=m.current?`${m.quantum*TICK} ms until next choice`:'waiting for work';
+      q('.cpu-progress').setAttribute('width',m.current?107*m.quantum/(m.kind==='A'?2:1):0);
+      q('[data-lock]').style.display=m.locked?'':'none';
+      q('[data-lock-time]').textContent=`${m.lockUntil-m.time} ms`;
+      if(m.kind==='A') {
+        const upper=m.ready.filter(t=>bucket(t.priority)===0), lower=m.ready.filter(t=>bucket(t.priority)===31);
+        for(const t of m.tasks) {
+          const node=q(`[data-token="${t.id}"]`);
+          let x=25,y=60;
+          if(t===m.current){x=472;y=143;}
+          else {const a=bucket(t.priority)===0?upper:lower,index=a.indexOf(t);x=25+(Math.max(0,index)%4)*98;y=(bucket(t.priority)===0?61:227)+Math.floor(Math.max(0,index)/4)*37;}
+          node.style.transform=`translate(${x}px, ${y}px)`;
+          node.style.opacity=t.state==='sleeping'?'0':'1';
+        }
+        q('[data-bucket-empty]').textContent=lower.length?'':(m.tasks.some(t=>t.priority===1)?'Empty right now':'No priority-1 tasks');
+      } else {
+        const awake=m.tasks.filter(t=>t.state!=='sleeping');
+        const floor=awake.length?Math.min(...awake.map(t=>t.vt)):m.minVT;
+        const spread=Math.max(16384,...awake.map(t=>t.vt-floor+charge(t.priority)));
+        for(const t of m.tasks) {
+          const x=151+Math.max(0,Math.min(1,(t.vt-floor)/spread))*224;
+          q(`[data-clock-dot="${t.id}"]`).setAttribute('cx',x);
+          q(`[data-clock-dot="${t.id}"]`).setAttribute('r',t===m.current?7:4);
+          q(`[data-clock-line="${t.id}"]`).setAttribute('x2',x);
+          const label=q(`[data-clock-number="${t.id}"]`);
+          label.textContent=t.state==='sleeping'?'asleep':`+${(t.vt-floor).toLocaleString('en-US')}`;
+          label.setAttribute('x',Math.max(230,x+44));
+          if(x>350) label.setAttribute('x',416);
+        }
+        if(m.lastClamp && m.time-m.lastClamp.at<=TICK && !m.locked) q('[data-decision]').textContent+=` ${m.lastClamp.name} joined at clock ${m.lastClamp.to.toLocaleString('en-US')}; sleeping did not bank service.`;
+      }
+      q('[data-timeline]').innerHTML=m.history.map(h=>`<span class="tick ${h.locked?'locked':''}" style="background-color:${m.tasks.find(t=>t.id===h.id)?.color||'#dbe5ec'}" title="${h.at}–${h.at+TICK} ms: ${esc(m.tasks.find(t=>t.id===h.id)?.name||'Idle')}${h.locked?' · interrupts off':''}"></span>`).join('')+'<span class="tick future"></span>'.repeat(96-m.history.length);
+      const latest=m.responses.at(-1);
+      const completed=latest?.id===requestId;
+      const outstanding=m.gui?.jobs.find(job=>job.id===requestId)||m.deferred.find(job=>job.id===requestId);
+      const status=q('.response-summary');
+      status.classList.toggle('complete',!!completed);
+      status.classList.toggle('waiting',requestId>0&&!completed);
+      q('[data-response-kicker]').textContent=requestId?`CLICK #${requestId} · ${completed?'COMPLETED':'WAITING'}`:'READY TO COMPARE';
+      q('[data-response-title]').textContent=requestId?(completed?`Responded in ${latest.latency} ms`:`Waiting ${m.time-(outstanding?.at??m.time)} ms`):'No click sent yet';
+      q('[data-response-detail]').textContent=requestId?(completed?`Completed at ${latest.at} ms simulated time.`:(m.deferred.some(job=>job.id===requestId)?'Input delivery is deferred while interrupts are off.':'The desktop has not completed this click yet.')):'Send a click to both schedulers and compare their response times.';
+      q('[data-response-caption]').textContent=latest?`Last completed: click #${latest.id}`:'No completed clicks yet';
+      const pending=(m.gui?.jobs.length||0)+m.deferred.length;
+      q('[data-pending]').textContent=`${pending} queued${m.deferred.length?' · IRQ deferred':''}`;
+      const age=m.pendingAge(),last=m.responses.at(-1)?.latency??null;
+      q('[data-age] strong').textContent=fmt(age);
+      q('[data-age]').classList.toggle('alert',age!==null&&age>=40);
+      q('[data-last]').textContent=fmt(last);
+      q('[data-worst]').textContent=fmt(m.worstLatency);
+      for(const t of m.tasks) {
+        const row=q(`[data-share="${t.id}"]`),percent=m.time?t.cpu/m.time*100:0;
+        row.querySelector('.share-fill').style.width=`${percent}%`;
+        const number=row.querySelector('.share-number');
+        number.textContent=m.time?`${percent.toFixed(1)}%`:'—';
+        number.classList.toggle('never',t.cpu===0&&m.time>=80&&t.state==='ready');
+        row.title=`${t.cpu} ms CPU · ${t.state} · longest ready wait ${t.maxWait} ms${m.kind==='C'?` · virtual time ${t.vt} · +${charge(t.priority)} per tick`:''}`;
+      }
+    }
+    document.querySelectorAll('[data-sleep]').forEach(b=>{
+      b.disabled=models.some(m=>m.locked);
+      b.textContent=models[0].tasks.find(t=>t.id===+b.dataset.sleep).state==='sleeping'?'Wake':'Sleep';
+    });
+    renderWaitCharts();
+  }
+  $('scenarios').addEventListener('click',e=>{const b=e.target.closest('[data-scenario]');if(!b)return;scenario=scenarios.find(s=>s.id===b.dataset.scenario);definitions=scenario.tasks.map(t=>({...t}));modified=false;reset();});
+  $('load-mixed').onclick=()=>{scenario=scenarios.find(s=>s.id==='mixed');definitions=scenario.tasks.map(t=>({...t}));modified=false;reset();};
+  $('play').onclick=()=>play(!playing);
+  $('step').onclick=()=>{play(false);tick();};
+  $('restart').onclick=reset;
+  $('click').onclick=()=>sendInput();
+  $('hold').onclick=()=>{models.forEach(m=>m.hold());$('input-status').textContent='24 ms IRQ hold injected. Send a click, then Run or Step.';render();};
+  $('auto-input').onchange=()=>{nextAuto=models[0].time+TICK;};
+  $('speed').onchange=()=>{accumulator=0;render();};
+  $('task-list').addEventListener('change',e=>{
+    if(!e.target.matches('[data-priority]'))return;
+    const t=definitions.find(t=>t.id===+e.target.dataset.priority),value=Number(e.target.value);
+    if(!Number.isInteger(value)||value<1||value>99){e.target.value=t.priority;return;}
+    t.priority=value;modified=true;reset();
+  });
+  $('task-list').addEventListener('click',e=>{const b=e.target.closest('[data-sleep]');if(!b)return;models.forEach(m=>m.toggleSleep(+b.dataset.sleep));render();});
+  $('add-worker').onclick=()=>{if(definitions.length>=9)return;const id=definitions.length;definitions.push(task(id,`Worker ${id}`,30));modified=true;reset();};
+  document.addEventListener('keydown',e=>{
+    if(e.target.closest('input,select,textarea,button,summary,[role=button]')||e.ctrlKey||e.altKey||e.metaKey)return;
+    if(e.code==='Space'){e.preventDefault();play(!playing);}
+    if(e.code==='ArrowRight'){e.preventDefault();play(false);tick();}
+    if(e.code==='KeyI')sendInput();
+    if(e.code==='KeyR')reset();
+  });
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)play(false);});
+  function frame(now) {
+    const delta=lastFrame?Math.min(now-lastFrame,250):0;lastFrame=now;
+    if(playing){accumulator+=delta;const interval=1000/Number($('speed').value);const count=Math.floor(accumulator/interval);if(count){accumulator-=count*interval;tick(count);}}
+    requestAnimationFrame(frame);
+  }
+  window.schedulerDemo={get models(){return models;},get playing(){return playing;},tick,sendInput,reset};
+  reset();requestAnimationFrame(frame);
+})();
+</script>
+</body></html>

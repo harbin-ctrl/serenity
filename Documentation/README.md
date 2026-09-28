@@ -80,6 +80,7 @@ Make sure to read the basic [Build Instructions](BuildInstructions.md) first.
 -   [IOWindow](Kernel/IOWindow.md)
 -   [Graphics Subsystem](Kernel/GraphicsSubsystem.md)
 -   [Kernel Development Patterns & Guidelines](Kernel/DevelopmentGuidelines.md)
+-   [Scheduler C interactive proposal demo](Kernel/SchedulerC-Demo/README.md)
 
 ## Architecture Ports
 
